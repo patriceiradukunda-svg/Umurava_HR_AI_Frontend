@@ -72,7 +72,7 @@ export default function ApplicantJobsPage() {
         <div className="flex-1 flex items-center gap-3 bg-white border-2 border-sky-200 focus-within:border-sky-400 rounded-2xl px-5 h-14 shadow-sky-sm">
           <Search className="w-5 h-5 text-sky-400 flex-shrink-0" />
           <input value={search} onChange={e => setSearch(e.target.value)}
-            placeholder="Search jobs, skills, departments…"
+            placeholder="Search jobs, departments,...…"
             className="flex-1 outline-none text-sky-900 placeholder-sky-300 text-base" />
         </div>
       </div>
