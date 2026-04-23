@@ -62,14 +62,15 @@ export default function HRAuthPage() {
             Screen smarter,<br />hire faster.
           </h2>
           <p className="text-sky-100 text-lg leading-relaxed mb-10">
-            AI-powered candidate screening that gives your team back hours every day.
+            A streamlined candidate screening experience designed to save time, improve clarity, 
+            and help teams focus on meaningful hiring decisions.
           </p>
           <div className="space-y-4">
             {[
-              'Screen 100+ candidates in under 5 minutes',
-              'Gemini AI with explainable reasoning',
-              'Weighted scoring across 5 dimensions',
-              'Full pipeline visibility',
+              'Review 100+ candidate applications in minutes',
+              'Clear insights that support confident decision-making',
+              'Structured evaluation across multiple key criteria',
+              'Full visibility throughout every stage of the hiring pipeline',
             ].map(f => (
               <div key={f} className="flex items-center gap-3">
                 <div className="w-5 h-5 rounded-full bg-white/25 flex items-center justify-center">
@@ -83,7 +84,7 @@ export default function HRAuthPage() {
 
         <div className="relative">
           <p className="text-sky-200 text-sm">
-            Demo credentials: <span className="text-white font-mono">recruiter@umurava.africa</span> /
+            Sample credentials: <span className="text-white font-mono">recruiter@umurava.africa</span> /
             <span className="text-white font-mono"> Recruiter@1234</span>
           </p>
         </div>
