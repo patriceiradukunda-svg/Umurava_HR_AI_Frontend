@@ -61,8 +61,10 @@ export default function HomePage() {
           </h1>
 
           <p className="text-sky-700 text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
-            Umurava Talent helps you screen, evaluate, and shortlist candidates efficiently so your recruiters can focus on what matters most - 
-            meaningful human conversations and selecting the right talent.
+            Umurava Talent Platform helps organizations discover the right candidates faster and supports 
+            applicants in showcasing their strengths with confidence. From application to shortlisting, 
+            the platform simplifies each step of the hiring journey so recruiters can focus on 
+            meaningful conversations and candidates can focus on presenting their best selves.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
