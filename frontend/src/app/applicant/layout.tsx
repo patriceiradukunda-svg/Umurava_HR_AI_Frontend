@@ -39,7 +39,7 @@ export default function ApplicantLayout({ children }: { children: React.ReactNod
             </div>
             <div className="hidden sm:block">
               <span className="font-display font-bold text-sky-900 text-base leading-none">Umurava</span>
-              <span className="block text-sky-400 text-[10px] tracking-widest uppercase">TalentAI</span>
+              <span className="block text-sky-400 text-[10px] tracking-widest uppercase">Africa</span>
             </div>
           </Link>
 
