@@ -106,7 +106,7 @@ export default function ApplicantAuthPage() {
             </h1>
           </div>
           <p className="text-sky-400 text-sm mb-8">
-            {mode === 'login' ? 'Sign in to browse and apply for jobs' : 'Start your job search journey'}
+            {mode === 'login' ? 'Sign in and apply for great opportunities waiting for you' : 'Start your professional career now'}
           </p>
 
           <div className="flex bg-sky-50 rounded-xl p-1 mb-8">
