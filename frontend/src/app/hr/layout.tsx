@@ -1,21 +1,16 @@
 'use client'
+import { BrainCircuit, LayoutDashboard, Briefcase, Users, Bot, Star, Settings, LogOut, Bell, Search } from 'lucide-react'
 import { useEffect } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { useAuth } from '@/context/AuthContext'
-import {
-  BrainCircuit, LayoutDashboard, Briefcase, Users, Bot,
-  Star, GitBranch, BarChart3, Settings, LogOut, Bell, Search,
-} from 'lucide-react'
 
 const navItems = [
   { href: '/hr/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/hr/jobs',       icon: Briefcase,        label: 'Job Postings' },
   { href: '/hr/applicants', icon: Users,            label: 'Applicants' },
-  { href: '/hr/screening',  icon: Bot,              label: 'AI Screening' },
+  { href: '/hr/screening',  icon: Bot,              label: 'Screening' },
   { href: '/hr/shortlist',  icon: Star,             label: 'Shortlists' },
-  { href: '/hr/pipeline',   icon: GitBranch,        label: 'Pipeline' },
-  { href: '/hr/analytics',  icon: BarChart3,        label: 'Analytics' },
   { href: '/hr/settings',   icon: Settings,         label: 'Settings' },
 ]
 
@@ -51,14 +46,13 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
           </div>
           <div>
             <span className="font-display text-white font-bold text-base leading-none">Umurava</span>
-            <span className="block text-sky-400 text-[10px] tracking-widest uppercase mt-0.5">TalentAI · HR</span>
+            <span className="block text-sky-400 text-[10px] tracking-widest uppercase mt-0.5">Talent · HR</span>
           </div>
         </div>
 
         {/* Nav */}
         <nav className="flex-1 py-4 px-3 space-y-0.5 relative overflow-y-auto">
-          <p className="text-sky-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-2">Main</p>
-          {navItems.slice(0, 5).map(item => {
+          {navItems.map(item => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/')
             return (
               <Link key={item.href} href={item.href}
@@ -67,32 +61,6 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
                     ? 'bg-sky-500/20 text-white before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:w-0.5 before:h-5 before:bg-sky-400 before:rounded-full'
                     : 'text-sky-400 hover:text-white hover:bg-sky-800/40'
                   }`}>
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
-              </Link>
-            )
-          })}
-
-          <p className="text-sky-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-2 mt-5">Analytics</p>
-          {navItems.slice(5, 7).map(item => {
-            const active = pathname === item.href
-            return (
-              <Link key={item.href} href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative
-                  ${active ? 'bg-sky-500/20 text-white' : 'text-sky-400 hover:text-white hover:bg-sky-800/40'}`}>
-                <item.icon className="w-4 h-4 flex-shrink-0" />
-                {item.label}
-              </Link>
-            )
-          })}
-
-          <p className="text-sky-500 text-[10px] font-bold uppercase tracking-widest px-3 mb-2 mt-5">Config</p>
-          {navItems.slice(7).map(item => {
-            const active = pathname === item.href
-            return (
-              <Link key={item.href} href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative
-                  ${active ? 'bg-sky-500/20 text-white' : 'text-sky-400 hover:text-white hover:bg-sky-800/40'}`}>
                 <item.icon className="w-4 h-4 flex-shrink-0" />
                 {item.label}
               </Link>
