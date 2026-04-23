@@ -33,7 +33,7 @@ export default function HomePage() {
             </div>
             <div>
               <span className="font-display font-800 text-sky-900 text-lg leading-none">Umurava</span>
-              <span className="block text-xs text-sky-400 font-semibold tracking-widest uppercase">TalentAI</span>
+              <span className="block text-xs text-sky-400 font-semibold tracking-widest uppercase">Africa</span>
             </div>
           </div>
           <div className="flex items-center gap-3">
