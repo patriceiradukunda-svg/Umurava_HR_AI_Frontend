@@ -55,7 +55,7 @@ export default function ApplicantAuthPage() {
           <div className="w-9 h-9 rounded-xl bg-sky-gradient flex items-center justify-center shadow-sky-sm">
             <BrainCircuit className="w-5 h-5 text-white" />
           </div>
-          <span className="font-display font-bold text-sky-900 text-lg">Umurava TalentAI</span>
+          <span className="font-display font-bold text-sky-900 text-lg">Umurava Africa</span>
         </Link>
 
         <div className="relative">
@@ -68,8 +68,8 @@ export default function ApplicantAuthPage() {
             <span className="gradient-text">dream role.</span>
           </h2>
           <p className="text-sky-600 text-lg leading-relaxed">
-            Browse curated job opportunities, apply with your profile,
-            and let AI match you with the right positions.
+            Browse job opportunities, apply with your profile, and find the 
+            right position, you have been waiting for.
           </p>
         </div>
 
@@ -77,8 +77,8 @@ export default function ApplicantAuthPage() {
           {[
             { label: 'Open Positions', value: '12+' },
             { label: 'Companies', value: '5+' },
-            { label: 'AI Matched', value: '94%' },
-            { label: 'Hired', value: '68' },
+            { label: 'Matched', value: '94%' },
+            { label: 'Hired', value: '1000+' },
           ].map(s => (
             <div key={s.label} className="bg-white rounded-2xl p-4 shadow-card">
               <div className="font-display text-2xl font-bold text-sky-600">{s.value}</div>
@@ -96,7 +96,7 @@ export default function ApplicantAuthPage() {
             <div className="w-9 h-9 rounded-xl bg-sky-gradient flex items-center justify-center">
               <BrainCircuit className="w-5 h-5 text-white" />
             </div>
-            <span className="font-display font-bold text-sky-900 text-lg">Umurava TalentAI</span>
+            <span className="font-display font-bold text-sky-900 text-lg">Umurava Africa</span>
           </Link>
 
           <div className="flex items-center gap-2 mb-2">
