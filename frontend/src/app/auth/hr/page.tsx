@@ -17,12 +17,9 @@ export default function HRAuthPage() {
 
   const onSubmit = async (data: any) => {
     if (mode === 'register') {
-      // HR accounts cannot be self-registered
-      // They must be created by an admin
       toast.error('HR accounts are created by your administrator. Please contact admin@umurava.africa to get access.')
       return
     }
-
     setBusy(true)
     try {
       const res = await login(data.email, data.password)
@@ -62,7 +59,7 @@ export default function HRAuthPage() {
             Screen smarter,<br />hire faster.
           </h2>
           <p className="text-sky-100 text-lg leading-relaxed mb-10">
-            A streamlined candidate screening experience designed to save time, improve clarity, 
+            A streamlined candidate screening experience designed to save time, improve clarity,
             and help teams focus on meaningful hiring decisions.
           </p>
           <div className="space-y-4">
@@ -170,7 +167,7 @@ export default function HRAuthPage() {
               </form>
             )}
 
-            {/* Register info panel — no form, just instructions */}
+            {/* Register info panel */}
             {mode === 'register' && (
               <div className="space-y-5">
                 <div className="flex items-start gap-4 bg-amber-50 border border-amber-200 rounded-2xl p-5">
@@ -202,7 +199,7 @@ export default function HRAuthPage() {
                   ))}
                 </div>
 
-                
+                <a
                   href="mailto:admin@umurava.africa?subject=HR Account Request&body=Hello, I would like to request an HR recruiter account. My name is: [Your Name]. Department: [Your Department]."
                   className="w-full btn-sky flex items-center justify-center gap-2">
                   📧 Email admin@umurava.africa
