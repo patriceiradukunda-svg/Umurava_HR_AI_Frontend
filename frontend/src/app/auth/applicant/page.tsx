@@ -47,44 +47,35 @@ export default function ApplicantAuthPage() {
   return (
     <div className="min-h-screen flex">
       {/* Left decorative panel */}
-      <div className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 bg-sky-50 relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 flex-col justify-center gap-12 p-12 bg-sky-50 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-sky-200 rounded-full blur-3xl opacity-50" />
         <div className="absolute bottom-0 left-0 w-72 h-72 bg-sky-300 rounded-full blur-3xl opacity-30" />
 
-        <Link href="/" className="relative flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-sky-gradient flex items-center justify-center shadow-sky-sm">
-            <BrainCircuit className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-display font-bold text-sky-900 text-lg">Umurava Africa</span>
-        </Link>
+        {/* Top corners: logo left, badge right */}
+        <div className="absolute top-8 left-8 right-8 flex items-center justify-between">
+          <Link href="/" className="relative flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-sky-gradient flex items-center justify-center shadow-sky-sm">
+              <BrainCircuit className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-display font-bold text-sky-900 text-lg">Umurava Africa</span>
+          </Link>
 
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 bg-sky-100 border border-sky-200 rounded-full px-4 py-2 mb-6">
+          <div className="inline-flex items-center gap-2 bg-sky-100 border border-sky-200 rounded-full px-4 py-2">
             <Users className="w-4 h-4 text-sky-500" />
             <span className="text-sky-700 text-sm font-semibold">Job Seeker Portal</span>
           </div>
+        </div>
+
+        {/* Center content */}
+        <div className="relative">
           <h2 className="font-display text-5xl font-bold text-sky-950 leading-tight mb-6">
             Find your<br />
             <span className="gradient-text">dream role.</span>
           </h2>
           <p className="text-sky-600 text-lg leading-relaxed">
-            Browse job opportunities, apply with your profile, and find the 
+            Browse job opportunities, apply with your profile, and find the
             right position, you have been waiting for.
           </p>
-        </div>
-
-        <div className="relative grid grid-cols-2 gap-4">
-          {[
-            { label: 'Open Positions', value: '12+' },
-            { label: 'Companies', value: '5+' },
-            { label: 'Matched', value: '94%' },
-            { label: 'Hired', value: '1000+' },
-          ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl p-4 shadow-card">
-              <div className="font-display text-2xl font-bold text-sky-600">{s.value}</div>
-              <div className="text-sky-400 text-xs font-semibold uppercase tracking-wide">{s.label}</div>
-            </div>
-          ))}
         </div>
       </div>
 
