@@ -52,12 +52,12 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 bg-sky-100 border border-sky-200 rounded-full px-4 py-2 mb-8">
             <Zap className="w-4 h-4 text-sky-500" />
-            <span className="text-sky-700 text-sm font-semibold">Powered by Umurava Talent Platform</span>
+            <span className="text-sky-700 text-sm font-semibold">Welcome to Umurava Talent Platform</span>
           </div>
 
           <h1 className="font-display font-800 text-5xl md:text-7xl text-sky-950 leading-tight mb-6">
-            Hire Smarter with
-            <span className="gradient-text block">Confidence</span>
+            Connecting Great Talent with
+            <span className="gradient-text block">Great Opportunities 🤝</span>
           </h1>
 
           <p className="text-sky-700 text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
