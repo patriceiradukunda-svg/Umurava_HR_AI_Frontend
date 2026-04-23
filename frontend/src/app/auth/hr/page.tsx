@@ -63,7 +63,7 @@ export default function HRAuthPage() {
           </h2>
           <p className="text-sky-100 text-lg leading-relaxed mb-10">
             A streamlined candidate screening experience designed to save time, improve clarity, 
-            and help teams focus on meaningful hiring decisions.
+            and 
           </p>
           <div className="space-y-4">
             {[
