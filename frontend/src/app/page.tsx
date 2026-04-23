@@ -73,7 +73,7 @@ export default function HomePage() {
             </Link>
             <Link href="/auth/applicant" className="btn-sky-outline text-base flex items-center gap-2 justify-center">
               <Users className="w-5 h-5" />
-              I&apos;m Looking for Work
+              I&apos;m Looking for Job
             </Link>
           </div>
         </div>
