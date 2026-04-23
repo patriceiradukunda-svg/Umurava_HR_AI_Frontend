@@ -94,7 +94,7 @@ export default function HomePage() {
             {[
               {
                 icon: BrainCircuit,
-                title: 'Gemini AI Screening',
+                title: 'AI Screening',
                 desc: 'Multi-candidate batch evaluation with weighted scoring across skills, experience, education and more.',
                 color: 'text-sky-400',
                 bg: 'bg-sky-900',
@@ -146,7 +146,7 @@ export default function HomePage() {
 
       {/* ── Footer ── */}
       <footer className="bg-sky-950 py-8 px-6 text-center text-sky-400 text-sm">
-        <p>© 2024 Umurava TalentAI · Powered by Google Gemini API · Built for Umurava AI Hackathon</p>
+        <p>© 2026 Umurava Africa · Designed by Syntare Group · Built for Umurava AI Hackathon</p>
       </footer>
     </main>
   )
