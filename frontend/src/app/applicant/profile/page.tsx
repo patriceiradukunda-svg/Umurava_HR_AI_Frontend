@@ -48,7 +48,7 @@ export default function ApplicantProfilePage() {
         <div className="mt-8 p-4 bg-sky-50 rounded-xl border border-sky-100">
           <p className="text-sky-600 text-sm font-semibold mb-1">💡 Tip: Complete your profile</p>
           <p className="text-sky-500 text-xs leading-relaxed">
-            To improve your AI match score, ask your HR team to add your full talent profile
+            To be hired Quickly, you can ask for help to complete your full profile in short moment than you think.
             (skills, experience, education, projects) to the system.
           </p>
         </div>
