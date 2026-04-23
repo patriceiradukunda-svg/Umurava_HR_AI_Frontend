@@ -12,15 +12,14 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-// ─── Constants ────────────────────────────────────────────────────────────────
 const DEPARTMENTS = ['Engineering', 'Design', 'Data & Analytics', 'Product', 'Marketing', 'Operations', 'Finance', 'HR & People', 'Sales', 'Legal', 'Customer Success']
 const JOB_TYPES   = ['Full-time', 'Part-time', 'Contract', 'Freelance', 'Internship', 'Remote']
 const EDU_LEVELS  = ["High School", "Associate's", "Bachelor's", "Master's", "PhD", "No Requirement"]
 const SORT_OPTIONS = [
-  { value: 'newest',      label: 'Recently Posted' },
-  { value: 'oldest',      label: 'Oldest First' },
-  { value: 'applicants',  label: 'Most Applicants' },
-  { value: 'title',       label: 'Title A–Z' },
+  { value: 'newest',     label: 'Recently Posted' },
+  { value: 'oldest',     label: 'Oldest First' },
+  { value: 'applicants', label: 'Most Applicants' },
+  { value: 'title',      label: 'Title A–Z' },
 ]
 const STATUS_STYLES: Record<string, { badge: string; icon: any; dot: string }> = {
   active:    { badge: 'bg-emerald-100 text-emerald-700 border border-emerald-200', icon: CheckCircle, dot: 'bg-emerald-400' },
@@ -30,7 +29,6 @@ const STATUS_STYLES: Record<string, { badge: string; icon: any; dot: string }> =
 }
 const SALARY_CURRENCIES = ['USD', 'RWF', 'EUR', 'GBP', 'KES', 'UGX']
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function timeAgo(date: string) {
   const diff = Date.now() - new Date(date).getTime()
   const d = Math.floor(diff / 86400000)
@@ -45,8 +43,8 @@ function formatDeadline(date: string) {
   const d   = new Date(date)
   const now = new Date()
   const diff = Math.ceil((d.getTime() - now.getTime()) / 86400000)
-  if (diff < 0)  return { label: 'Expired', color: 'text-red-500' }
-  if (diff === 0) return { label: 'Closes today', color: 'text-red-500' }
+  if (diff < 0)   return { label: 'Expired',      color: 'text-red-500' }
+  if (diff === 0) return { label: 'Closes today',  color: 'text-red-500' }
   if (diff <= 3)  return { label: `${diff}d left`, color: 'text-amber-600' }
   if (diff <= 7)  return { label: `${diff}d left`, color: 'text-amber-500' }
   return { label: `${diff}d left`, color: 'text-sky-500' }
@@ -60,7 +58,6 @@ function fmtSalary(job: any) {
   return `Up to ${cur} ${fmt(job.salaryMax)}`
 }
 
-// ─── Section Label ────────────────────────────────────────────────────────────
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-[10px] font-bold text-sky-500 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -71,7 +68,6 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ─── Form Field ──────────────────────────────────────────────────────────────
 function Field({ label, required, hint, children }: { label: string; required?: boolean; hint?: string; children: React.ReactNode }) {
   return (
     <div>
@@ -84,7 +80,6 @@ function Field({ label, required, hint, children }: { label: string; required?: 
   )
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
 function JobCardSkeleton() {
   return (
     <div className="bg-white rounded-2xl p-6 border border-sky-50 animate-pulse">
@@ -107,7 +102,6 @@ function JobCardSkeleton() {
   )
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
 export default function HRJobsPage() {
   const [jobs, setJobs]             = useState<any[]>([])
   const [stats, setStats]           = useState<any>({})
@@ -117,12 +111,11 @@ export default function HRJobsPage() {
   const [busy, setBusy]             = useState(false)
   const [previewJob, setPreviewJob] = useState<any>(null)
 
-  // Filters
-  const [search, setSearch]         = useState('')
-  const [statusFilter, setStatus]   = useState('all')
-  const [deptFilter, setDept]       = useState('all')
-  const [typeFilter, setType]       = useState('all')
-  const [sortBy, setSort]           = useState('newest')
+  const [search, setSearch]           = useState('')
+  const [statusFilter, setStatus]     = useState('all')
+  const [deptFilter, setDept]         = useState('all')
+  const [typeFilter, setType]         = useState('all')
+  const [sortBy, setSort]             = useState('newest')
   const [showFilters, setShowFilters] = useState(false)
 
   const { register, handleSubmit, reset, setValue, watch } = useForm({
@@ -150,13 +143,11 @@ export default function HRJobsPage() {
       ])
       let data = jRes.data.data as any[]
 
-      // Client-side sort
-      if (sortBy === 'newest')     data = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      else if (sortBy === 'oldest') data = [...data].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+      if (sortBy === 'newest')          data = [...data].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      else if (sortBy === 'oldest')     data = [...data].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
       else if (sortBy === 'applicants') data = [...data].sort((a, b) => (b.applicantCount || 0) - (a.applicantCount || 0))
-      else if (sortBy === 'title') data = [...data].sort((a, b) => a.title.localeCompare(b.title))
+      else if (sortBy === 'title')      data = [...data].sort((a, b) => a.title.localeCompare(b.title))
 
-      // Type filter (client-side since backend doesn't support it)
       if (typeFilter !== 'all') data = data.filter(j => j.type === typeFilter)
 
       setJobs(data)
@@ -167,11 +158,7 @@ export default function HRJobsPage() {
 
   useEffect(() => { load() }, [load])
 
-  const openCreate = () => {
-    setEditing(null)
-    reset()
-    setShowModal(true)
-  }
+  const openCreate = () => { setEditing(null); reset(); setShowModal(true) }
 
   const openEdit = (job: any) => {
     setEditing(job)
@@ -243,8 +230,8 @@ export default function HRJobsPage() {
     catch { toast.error('Failed to update status') }
   }
 
-  const uniqueDepts  = [...new Set(jobs.map(j => j.department).filter(Boolean))]
-  const uniqueTypes  = [...new Set(jobs.map(j => j.type).filter(Boolean))]
+  const uniqueDepts   = [...new Set(jobs.map(j => j.department).filter(Boolean))]
+  const uniqueTypes   = [...new Set(jobs.map(j => j.type).filter(Boolean))]
   const activeFilters = [statusFilter, deptFilter, typeFilter].filter(f => f !== 'all').length
 
   return (
@@ -270,12 +257,13 @@ export default function HRJobsPage() {
       {/* ── Stats bar ── */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'Total Jobs',   value: stats.total    || 0, color: 'text-sky-700',    bg: 'bg-sky-50',     border: 'border-sky-200' },
-          { label: 'Active',       value: stats.active   || 0, color: 'text-emerald-700',bg: 'bg-emerald-50', border: 'border-emerald-200' },
-          { label: 'In Screening', value: stats.screening|| 0, color: 'text-indigo-700', bg: 'bg-indigo-50',  border: 'border-indigo-200' },
-          { label: 'Drafts',       value: stats.draft    || 0, color: 'text-amber-700',  bg: 'bg-amber-50',   border: 'border-amber-200' },
+          { label: 'Total Jobs',   value: stats.total     || 0, color: 'text-sky-700',     bg: 'bg-sky-50',     border: 'border-sky-200' },
+          { label: 'Active',       value: stats.active    || 0, color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+          { label: 'In Screening', value: stats.screening || 0, color: 'text-indigo-700',  bg: 'bg-indigo-50',  border: 'border-indigo-200' },
+          { label: 'Drafts',       value: stats.draft     || 0, color: 'text-amber-700',   bg: 'bg-amber-50',   border: 'border-amber-200' },
         ].map(s => (
-          <button key={s.label} onClick={() => setStatus(s.label === 'Total Jobs' ? 'all' : s.label.toLowerCase().replace('in ', ''))}
+          <button key={s.label}
+            onClick={() => setStatus(s.label === 'Total Jobs' ? 'all' : s.label.toLowerCase().replace('in ', ''))}
             className={`${s.bg} border ${s.border} rounded-2xl p-4 text-left hover:shadow-sm transition-all`}>
             <p className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</p>
             <p className="text-sky-500 text-xs font-medium mt-0.5">{s.label}</p>
@@ -286,15 +274,18 @@ export default function HRJobsPage() {
       {/* ── Filters row ── */}
       <div className="bg-white rounded-2xl border border-sky-100 p-4 space-y-3" style={{ boxShadow: '0 1px 4px rgba(14,165,233,0.06)' }}>
         <div className="flex items-center gap-3 flex-wrap">
-          {/* Search */}
           <div className="flex items-center gap-2 bg-sky-50 border border-sky-200 rounded-xl px-3 h-10 flex-1 min-w-[200px]">
             <Search className="w-4 h-4 text-sky-400 flex-shrink-0" />
             <input value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Search job title…" className="outline-none text-sm text-sky-800 placeholder-sky-300 bg-transparent flex-1" />
-            {search && <button onClick={() => setSearch('')} className="text-sky-300 hover:text-sky-600"><X className="w-3.5 h-3.5" /></button>}
+              placeholder="Search job title…"
+              className="outline-none text-sm text-sky-800 placeholder-sky-300 bg-transparent flex-1" />
+            {search && (
+              <button onClick={() => setSearch('')} className="text-sky-300 hover:text-sky-600">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
 
-          {/* Sort */}
           <div className="flex items-center gap-2 bg-white border border-sky-200 rounded-xl px-3 h-10">
             <ArrowUpDown className="w-3.5 h-3.5 text-sky-400" />
             <select value={sortBy} onChange={e => setSort(e.target.value)}
@@ -303,11 +294,16 @@ export default function HRJobsPage() {
             </select>
           </div>
 
-          {/* Toggle advanced filters */}
           <button onClick={() => setShowFilters(v => !v)}
-            className={`flex items-center gap-2 h-10 px-4 rounded-xl border text-sm font-semibold transition-all ${showFilters || activeFilters > 0 ? 'bg-sky-600 text-white border-sky-600' : 'bg-white border-sky-200 text-sky-600 hover:border-sky-400'}`}>
+            className={`flex items-center gap-2 h-10 px-4 rounded-xl border text-sm font-semibold transition-all ${
+              showFilters || activeFilters > 0
+                ? 'bg-sky-600 text-white border-sky-600'
+                : 'bg-white border-sky-200 text-sky-600 hover:border-sky-400'
+            }`}>
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filters {activeFilters > 0 && <span className="bg-white/30 text-xs px-1.5 py-0.5 rounded-full font-bold">{activeFilters}</span>}
+            Filters {activeFilters > 0 && (
+              <span className="bg-white/30 text-xs px-1.5 py-0.5 rounded-full font-bold">{activeFilters}</span>
+            )}
           </button>
 
           {activeFilters > 0 && (
@@ -317,33 +313,33 @@ export default function HRJobsPage() {
             </button>
           )}
 
-          <span className="ml-auto text-sky-400 text-xs font-medium">{jobs.length} result{jobs.length !== 1 ? 's' : ''}</span>
+          <span className="ml-auto text-sky-400 text-xs font-medium">
+            {jobs.length} result{jobs.length !== 1 ? 's' : ''}
+          </span>
         </div>
 
-        {/* Advanced filters */}
         {showFilters && (
           <div className="flex items-center gap-3 flex-wrap pt-2 border-t border-sky-50">
             <div className="flex items-center gap-2">
               <Filter className="w-3.5 h-3.5 text-sky-400" />
               <span className="text-xs text-sky-500 font-semibold">Filter by:</span>
             </div>
-            {/* Status */}
             <div className="flex items-center gap-1 flex-wrap">
               {['all', 'active', 'draft', 'screening', 'closed'].map(s => (
                 <button key={s} onClick={() => setStatus(s)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize ${statusFilter === s ? 'bg-sky-600 text-white' : 'bg-sky-50 text-sky-600 hover:bg-sky-100'}`}>
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all capitalize ${
+                    statusFilter === s ? 'bg-sky-600 text-white' : 'bg-sky-50 text-sky-600 hover:bg-sky-100'
+                  }`}>
                   {s === 'all' ? 'All Status' : s}
                 </button>
               ))}
             </div>
             <div className="w-px h-5 bg-sky-100" />
-            {/* Department */}
             <select value={deptFilter} onChange={e => setDept(e.target.value)}
               className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
               <option value="all">All Departments</option>
               {(uniqueDepts.length > 0 ? uniqueDepts : DEPARTMENTS).map(d => <option key={d} value={d}>{d}</option>)}
             </select>
-            {/* Type */}
             <select value={typeFilter} onChange={e => setType(e.target.value)}
               className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
               <option value="all">All Types</option>
@@ -359,16 +355,20 @@ export default function HRJobsPage() {
           {[...Array(6)].map((_, i) => <JobCardSkeleton key={i} />)}
         </div>
       ) : jobs.length === 0 ? (
-        <div className="bg-white rounded-2xl p-16 text-center border border-sky-50" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
+        <div className="bg-white rounded-2xl p-16 text-center border border-sky-50"
+          style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
           <Briefcase className="w-12 h-12 text-sky-200 mx-auto mb-4" />
           <h3 className="font-display text-xl font-bold text-sky-900 mb-2">
             {activeFilters > 0 || search ? 'No jobs match your filters' : 'No job postings yet'}
           </h3>
           <p className="text-sky-400 mb-6 text-sm">
-            {activeFilters > 0 || search ? 'Try adjusting your search or filters.' : 'Create your first job posting to start attracting candidates.'}
+            {activeFilters > 0 || search
+              ? 'Try adjusting your search or filters.'
+              : 'Create your first job posting to start attracting candidates.'}
           </p>
           {!(activeFilters > 0 || search) && (
-            <button onClick={openCreate} className="inline-flex items-center gap-2 bg-sky-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-sky-700 transition-colors">
+            <button onClick={openCreate}
+              className="inline-flex items-center gap-2 bg-sky-600 text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-sky-700 transition-colors">
               <Plus className="w-4 h-4" /> Post First Job
             </button>
           )}
@@ -384,22 +384,35 @@ export default function HRJobsPage() {
                 className="bg-white rounded-2xl border border-sky-50 hover:border-sky-200 hover:shadow-md transition-all duration-200 flex flex-col group"
                 style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.07)' }}>
 
-                {/* Card header */}
+                {/* Card body */}
                 <div className="p-5 flex-1">
                   <div className="flex items-start gap-3 mb-3">
-                    {/* Company avatar */}
+                    {/* Avatar */}
                     <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center flex-shrink-0 shadow-sm">
                       <Briefcase className="w-5 h-5 text-white" />
                     </div>
+
+                    {/* Title + status + View/Copy on same line */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <div className="flex items-center gap-2 mb-1">
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${ss.badge}`}>
                           <ss.icon className="w-3 h-3" />{job.status}
                         </span>
                         {deadline && <span className={`text-xs font-semibold ${deadline.color}`}>{deadline.label}</span>}
+                        <div className="ml-auto flex items-center gap-1">
+                          <button onClick={() => setPreviewJob(job)}
+                            className="flex items-center gap-1 text-sky-500 hover:text-sky-700 text-[11px] font-semibold px-2 py-0.5 rounded-lg hover:bg-sky-50 border border-sky-100 hover:border-sky-300 transition-colors">
+                            <Eye className="w-3 h-3" /> View
+                          </button>
+                          <button onClick={() => duplicateJob(job)}
+                            className="flex items-center gap-1 text-sky-400 hover:text-sky-600 text-[11px] font-semibold px-2 py-0.5 rounded-lg hover:bg-sky-50 border border-sky-100 hover:border-sky-300 transition-colors">
+                            <Copy className="w-3 h-3" /> Copy
+                          </button>
+                        </div>
                       </div>
                       <h3 className="font-display font-bold text-sky-900 text-base leading-tight truncate">{job.title}</h3>
                     </div>
+
                     {/* Applicant count */}
                     <div className="flex-shrink-0 text-right">
                       <div className="font-display text-xl font-bold text-sky-500">{job.applicantCount || 0}</div>
@@ -447,7 +460,7 @@ export default function HRJobsPage() {
                   )}
 
                   {/* Dates */}
-                  <div className="flex items-center gap-3 text-[11px] text-sky-400 mt-auto">
+                  <div className="flex items-center gap-3 text-[11px] text-sky-400">
                     <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Posted {timeAgo(job.createdAt)}</span>
                     {job.applicationDeadline && (
                       <span className="flex items-center gap-1 ml-auto">
@@ -457,7 +470,7 @@ export default function HRJobsPage() {
                   </div>
                 </div>
 
-                {/* Card footer actions */}
+                {/* Card footer */}
                 <div className="border-t border-sky-50 px-5 py-3 flex items-center gap-2 bg-sky-50/30 rounded-b-2xl">
                   <Link href="/hr/screening"
                     className="flex items-center gap-1.5 bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
@@ -467,25 +480,20 @@ export default function HRJobsPage() {
                     className="flex items-center gap-1.5 bg-white border border-sky-200 text-sky-600 text-xs font-semibold px-3 py-1.5 rounded-lg hover:border-sky-400 hover:bg-sky-50 transition-colors">
                     <Pencil className="w-3 h-3" /> Edit
                   </button>
-                  <button onClick={() => setPreviewJob(job)}
-                    className="flex items-center gap-1.5 bg-white border border-sky-200 text-sky-600 text-xs font-semibold px-3 py-1.5 rounded-lg hover:border-sky-400 hover:bg-sky-50 transition-colors">
-                    <Eye className="w-3 h-3" /> View
-                  </button>
-                  <div className="ml-auto flex items-center gap-1">
-                    <button onClick={() => duplicateJob(job)} title="Duplicate"
-                      className="text-sky-300 hover:text-sky-600 p-1.5 rounded-lg hover:bg-sky-50 transition-colors">
-                      <Copy className="w-3.5 h-3.5" />
-                    </button>
+                  <div className="ml-auto flex items-center gap-2">
                     <select value={job.status} onChange={e => changeStatus(job._id, e.target.value)}
-                      className="text-xs border border-sky-200 rounded-lg px-2 py-1 text-sky-600 outline-none bg-white cursor-pointer hover:border-sky-400">
-                      {['active','draft','screening','closed'].map(s => <option key={s} value={s}>{s}</option>)}
+                      className="text-xs border border-sky-200 rounded-lg px-2 py-1.5 text-sky-600 outline-none bg-white cursor-pointer hover:border-sky-400">
+                      {['active', 'draft', 'screening', 'closed'].map(s => (
+                        <option key={s} value={s}>{s}</option>
+                      ))}
                     </select>
-                    <button onClick={() => deleteJob(job._id)} title="Delete"
+                    <button onClick={() => deleteJob(job._id)}
                       className="text-red-300 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
+
               </div>
             )
           })}
@@ -501,12 +509,12 @@ export default function HRJobsPage() {
                 <h2 className="font-display text-xl font-bold text-sky-900">{previewJob.title}</h2>
                 <p className="text-sky-400 text-sm">{previewJob.department} · {previewJob.location}</p>
               </div>
-              <button onClick={() => setPreviewJob(null)} className="text-sky-400 hover:text-sky-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-sky-50">
+              <button onClick={() => setPreviewJob(null)}
+                className="text-sky-400 hover:text-sky-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-sky-50">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-8 space-y-6">
-              {/* Meta */}
               <div className="flex flex-wrap gap-3">
                 {[
                   { icon: Clock,         label: previewJob.type },
@@ -524,21 +532,48 @@ export default function HRJobsPage() {
                   </span>
                 )}
               </div>
-              {previewJob.description && <div><h3 className="font-display font-bold text-sky-900 mb-2">About the Role</h3><p className="text-sky-700 text-sm leading-relaxed">{previewJob.description}</p></div>}
-              {previewJob.responsibilities && <div><h3 className="font-display font-bold text-sky-900 mb-2">Responsibilities</h3><p className="text-sky-700 text-sm leading-relaxed whitespace-pre-line">{previewJob.responsibilities}</p></div>}
+              {previewJob.description && (
+                <div>
+                  <h3 className="font-display font-bold text-sky-900 mb-2">About the Role</h3>
+                  <p className="text-sky-700 text-sm leading-relaxed">{previewJob.description}</p>
+                </div>
+              )}
+              {previewJob.responsibilities && (
+                <div>
+                  <h3 className="font-display font-bold text-sky-900 mb-2">Responsibilities</h3>
+                  <p className="text-sky-700 text-sm leading-relaxed whitespace-pre-line">{previewJob.responsibilities}</p>
+                </div>
+              )}
               {(previewJob.requirements || []).length > 0 && (
-                <div><h3 className="font-display font-bold text-sky-900 mb-2">Requirements</h3>
-                  <ul className="space-y-1">{previewJob.requirements.map((r: string, i: number) => <li key={i} className="flex gap-2 text-sky-700 text-sm"><CheckCircle className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />{r}</li>)}</ul>
+                <div>
+                  <h3 className="font-display font-bold text-sky-900 mb-2">Requirements</h3>
+                  <ul className="space-y-1">
+                    {previewJob.requirements.map((r: string, i: number) => (
+                      <li key={i} className="flex gap-2 text-sky-700 text-sm">
+                        <CheckCircle className="w-4 h-4 text-sky-400 flex-shrink-0 mt-0.5" />{r}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {(previewJob.requiredSkills || []).length > 0 && (
-                <div><h3 className="font-display font-bold text-sky-900 mb-2">Required Skills</h3>
-                  <div className="flex flex-wrap gap-2">{previewJob.requiredSkills.map((s: string) => <span key={s} className="bg-sky-100 text-sky-700 text-xs font-semibold px-3 py-1 rounded-full">{s}</span>)}</div>
+                <div>
+                  <h3 className="font-display font-bold text-sky-900 mb-2">Required Skills</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {previewJob.requiredSkills.map((s: string) => (
+                      <span key={s} className="bg-sky-100 text-sky-700 text-xs font-semibold px-3 py-1 rounded-full">{s}</span>
+                    ))}
+                  </div>
                 </div>
               )}
               {(previewJob.niceToHaveSkills || []).length > 0 && (
-                <div><h3 className="font-display font-bold text-sky-900 mb-2">Nice to Have</h3>
-                  <div className="flex flex-wrap gap-2">{previewJob.niceToHaveSkills.map((s: string) => <span key={s} className="bg-sky-50 text-sky-500 text-xs font-medium px-3 py-1 rounded-full border border-sky-200">{s}</span>)}</div>
+                <div>
+                  <h3 className="font-display font-bold text-sky-900 mb-2">Nice to Have</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {previewJob.niceToHaveSkills.map((s: string) => (
+                      <span key={s} className="bg-sky-50 text-sky-500 text-xs font-medium px-3 py-1 rounded-full border border-sky-200">{s}</span>
+                    ))}
+                  </div>
                 </div>
               )}
               <div className="flex gap-3 pt-2">
@@ -560,23 +595,24 @@ export default function HRJobsPage() {
       {showModal && (
         <div className="fixed inset-0 bg-sky-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-3xl max-h-[95vh] overflow-y-auto shadow-xl">
-
-            {/* Modal header */}
             <div className="sticky top-0 bg-white border-b border-sky-100 px-8 py-5 flex items-center justify-between rounded-t-3xl z-10">
               <div>
                 <h2 className="font-display text-xl font-bold text-sky-900">
                   {editing ? 'Edit Job Posting' : 'Create New Job Posting'}
                 </h2>
-                <p className="text-sky-400 text-sm mt-0.5">{editing ? 'Update the details below' : 'Fill in the details to publish a new role'}</p>
+                <p className="text-sky-400 text-sm mt-0.5">
+                  {editing ? 'Update the details below' : 'Fill in the details to publish a new role'}
+                </p>
               </div>
-              <button onClick={() => setShowModal(false)} className="text-sky-400 hover:text-sky-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-sky-50">
+              <button onClick={() => setShowModal(false)}
+                className="text-sky-400 hover:text-sky-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-sky-50">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="p-8 space-y-7">
 
-              {/* ── Section 1: Basic Info ── */}
+              {/* Section 1: Basic Info */}
               <div className="space-y-4">
                 <SectionLabel>Basic Information</SectionLabel>
                 <Field label="Job Title" required>
@@ -609,7 +645,7 @@ export default function HRJobsPage() {
                 </div>
               </div>
 
-              {/* ── Section 2: Compensation & Deadline ── */}
+              {/* Section 2: Compensation & Timeline */}
               <div className="space-y-4">
                 <SectionLabel>Compensation & Timeline</SectionLabel>
                 <div className="grid grid-cols-3 gap-4">
@@ -631,12 +667,13 @@ export default function HRJobsPage() {
                 </Field>
               </div>
 
-              {/* ── Section 3: Role Details ── */}
+              {/* Section 3: Role Details */}
               <div className="space-y-4">
                 <SectionLabel>Role Details</SectionLabel>
                 <Field label="Job Description" required>
                   <textarea {...register('description', { required: true })} rows={4}
-                    placeholder="Describe the role, team context, and what success looks like…" className="input-sky resize-none" />
+                    placeholder="Describe the role, team context, and what success looks like…"
+                    className="input-sky resize-none" />
                 </Field>
                 <Field label="Key Responsibilities" hint="One responsibility per line">
                   <textarea {...register('responsibilities')} rows={4}
@@ -650,7 +687,7 @@ export default function HRJobsPage() {
                 </Field>
               </div>
 
-              {/* ── Section 4: Qualifications ── */}
+              {/* Section 4: Qualifications */}
               <div className="space-y-4">
                 <SectionLabel>Qualifications & Skills</SectionLabel>
                 <div className="grid grid-cols-2 gap-4">
@@ -671,7 +708,7 @@ export default function HRJobsPage() {
                 </Field>
               </div>
 
-              {/* ── Section 5: Screening Config ── */}
+              {/* Section 5: Screening Config */}
               <div className="space-y-4">
                 <SectionLabel>Screening Configuration</SectionLabel>
                 <div className="grid grid-cols-2 gap-4">
@@ -706,6 +743,7 @@ export default function HRJobsPage() {
           </div>
         </div>
       )}
+
     </div>
   )
 }
