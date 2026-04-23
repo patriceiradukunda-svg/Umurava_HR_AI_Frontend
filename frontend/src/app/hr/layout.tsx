@@ -9,9 +9,8 @@ const navItems = [
   { href: '/hr/dashboard',  icon: LayoutDashboard, label: 'Dashboard' },
   { href: '/hr/jobs',       icon: Briefcase,        label: 'Job Postings' },
   { href: '/hr/applicants', icon: Users,            label: 'Applicants' },
-  { href: '/hr/screening',  icon: Bot,              label: 'Screening' },
+  { href: '/hr/screening',  icon: Bot,              label: 'AI Screening' },
   { href: '/hr/shortlist',  icon: Star,             label: 'Shortlists' },
-  { href: '/hr/settings',   icon: Settings,         label: 'Settings' },
 ]
 
 export default function HRLayout({ children }: { children: React.ReactNode }) {
