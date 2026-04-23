@@ -52,17 +52,17 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto text-center relative">
           <div className="inline-flex items-center gap-2 bg-sky-100 border border-sky-200 rounded-full px-4 py-2 mb-8">
             <Zap className="w-4 h-4 text-sky-500" />
-            <span className="text-sky-700 text-sm font-semibold">Powered by Google Gemini AI</span>
+            <span className="text-sky-700 text-sm font-semibold">Powered by Umurava Talent Platform</span>
           </div>
 
           <h1 className="font-display font-800 text-5xl md:text-7xl text-sky-950 leading-tight mb-6">
             Hire Smarter with
-            <span className="gradient-text block">AI-Powered Screening</span>
+            <span className="gradient-text block">Confidence</span>
           </h1>
 
           <p className="text-sky-700 text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
-            Umurava TalentAI automatically screens, scores, and shortlists candidates
-            so your recruiters can focus on what matters — the human conversation.
+            Umurava Talent helps you screen, evaluate, and shortlist candidates efficiently so your recruiters can focus on what matters most - 
+            meaningful human conversations and selecting the right talent.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
