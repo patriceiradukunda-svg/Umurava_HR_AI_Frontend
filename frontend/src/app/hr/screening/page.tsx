@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-// ─── Step definitions (no Gemini/AI branding) ──────────────────────────────
+// ─── Step definitions (no Gemini/AI branding) ────────────────────────────────
 const STEPS = [
   { key: 'parse',   label: 'Job Requirements Parsed',    sub: 'Extracting criteria and scoring weights' },
   { key: 'load',    label: 'Candidate Profiles Loaded',  sub: 'All profiles ready for evaluation' },
@@ -507,4 +507,3 @@ export default function HRScreeningPage() {
     </div>
   )
 }
-
