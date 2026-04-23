@@ -267,7 +267,8 @@ export default function HRApplicantsPage() {
             technologies: p.technologies?.split(',').map((t: string) => t.trim()).filter(Boolean) || [],
             startDate: '', endDate: '',
           })),
-          availability: { status: data.availabilityStatus, type: data.availabilityType },
+          // availability: { status: data.availabilityStatus, type: data.availabilityType },
+          availability: { status: data.status, type: data.type },
           socialLinks: {
             linkedin:  data.linkedin  || undefined,
             github:    data.github    || undefined,
@@ -469,7 +470,7 @@ export default function HRApplicantsPage() {
             <thead>
               <tr className="border-b border-sky-100 bg-sky-50/70">
                 {[
-                  'Candidate', 'Applied For', 'Job Posted', 'Applied On', 'Deadline', 'Added Via', 'Score', 'Status', ''
+                  'Candidate', 'Applied For', 'Job Posted', 'Applied On', 'Score', 'Status', ''
                 ].map(h => (
                   <th key={h} className="text-left px-5 py-3.5 text-[11px] font-bold text-sky-400 uppercase tracking-wide whitespace-nowrap">{h}</th>
                 ))}
@@ -549,17 +550,17 @@ export default function HRApplicantsPage() {
                         <p className="text-sky-300 text-[11px] mt-0.5">{fmtDate(a.appliedAt)}</p>
                       </td>
                       {/* Deadline */}
-                      <td className="px-5 py-3.5 whitespace-nowrap">
+                      {/* <td className="px-5 py-3.5 whitespace-nowrap">
                         {dl ? (
                           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${dl.color}`}>{dl.label}</span>
                         ) : <span className="text-sky-200 text-xs">—</span>}
-                      </td>
+                      </td> */}
                       {/* Added Via */}
-                      <td className="px-5 py-3.5">
+                      {/* <td className="px-5 py-3.5">
                         <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${via.color}`}>
                           <span>{via.icon}</span>{via.label}
                         </span>
-                      </td>
+                      </td> */}
                       {/* Score */}
                       <td className="px-5 py-3.5">
                         {a.aiScore != null ? <ScoreRing score={a.aiScore} size={36} /> : <span className="text-sky-200 text-xs">—</span>}
@@ -576,7 +577,7 @@ export default function HRApplicantsPage() {
                         <div className="flex items-center gap-1">
                           <button onClick={() => setSelected(a)} title="View full profile"
                             className="text-sky-400 hover:text-sky-700 p-1.5 rounded-lg hover:bg-sky-50 transition-colors">
-                            <Eye className="w-4 h-4" />
+                            {/* <Eye className="w-4 h-4" /> */} View
                           </button>
                           <button onClick={() => toggleRow(a._id)} title={isExpanded ? 'Collapse' : 'Quick view'}
                             className="text-sky-400 hover:text-sky-700 p-1.5 rounded-lg hover:bg-sky-50 transition-colors">
@@ -634,7 +635,7 @@ export default function HRApplicantsPage() {
                                 <div className="mt-4">
                                   <p className="text-xs font-bold text-sky-400 mb-2">Certifications</p>
                                   {p.certifications.slice(0, 2).map((c: any) => (
-                                    <p key={c.name} className="text-xs text-sky-600">🏅 {c.name}</p>
+                                    <p key={c.name} className="text-xs text-sky-600"> {c.name}</p>
                                   ))}
                                 </div>
                               )}
@@ -658,16 +659,16 @@ export default function HRApplicantsPage() {
                               <div className="flex gap-2 mt-4">
                                 <button onClick={() => updateStatus(a._id, 'shortlisted')}
                                   className="flex-1 text-xs bg-emerald-600 text-white font-semibold py-2 rounded-xl hover:bg-emerald-700 transition-colors">
-                                  ✓ Shortlist
+                                  Shortlist
                                 </button>
                                 <button onClick={() => updateStatus(a._id, 'rejected')}
                                   className="flex-1 text-xs bg-red-50 text-red-500 font-semibold py-2 rounded-xl hover:bg-red-100 transition-colors">
-                                  ✗ Reject
+                                   Reject
                                 </button>
                               </div>
                               <button onClick={() => setSelected(a)}
-                                className="w-full mt-2 text-xs text-sky-500 font-semibold py-1.5 rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-center gap-1">
-                                <Eye className="w-3 h-3" /> Full Profile
+                                className="w-full mt-2 text-xs text-sky-500 font-semibold py-1.5 rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-center gap-1">View
+                                {/* <Eye className="w-3 h-3" /> Full Profile */}
                               </button>
                             </div>
                           </div>
@@ -753,15 +754,15 @@ export default function HRApplicantsPage() {
                   ['Email',      selected.talentProfile?.email],
                   ['Location',   selected.talentProfile?.location],
                   ['Status',     STATUS_META[selected.status]?.label || selected.status],
-                  ['Added Via',  VIA_META[selected.source]?.label || selected.source],
+                  // ['Added Via',  VIA_META[selected.source]?.label || selected.source],
                   ['Applied On', fmtDate(selected.appliedAt)],
                   ['Job Posted', jobMap[selected.jobId?._id || selected.jobId]?.createdAt ? fmtDate(jobMap[selected.jobId?._id || selected.jobId].createdAt) : '—'],
-                  ['Deadline',   jobMap[selected.jobId?._id || selected.jobId]?.applicationDeadline ? fmtDate(jobMap[selected.jobId?._id || selected.jobId].applicationDeadline) : '—'],
+                  // ['Deadline',   jobMap[selected.jobId?._id || selected.jobId]?.applicationDeadline ? fmtDate(jobMap[selected.jobId?._id || selected.jobId].applicationDeadline) : '—'],
                   ['Availability', selected.talentProfile?.availability?.status],
                 ].map(([l, v]) => (
                   <div key={l} className="bg-sky-50 rounded-xl p-3">
                     <p className="text-sky-400 text-xs font-bold uppercase tracking-wide">{l}</p>
-                    <p className="text-sky-900 font-semibold mt-1 text-sm">{String(v || '—')}</p>
+                    <p className="text-sky-900 font-semibold mt-1 text-sm">{String(v)}</p>
                   </div>
                 ))}
               </div>
@@ -830,7 +831,7 @@ export default function HRApplicantsPage() {
               )}
               {/* Actions */}
               <div className="flex gap-3 pt-2">
-                <button onClick={() => updateStatus(selected._id, 'shortlisted')} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors">✓ Shortlist</button>
+                <button onClick={() => updateStatus(selected._id, 'shortlisted')} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors">Shortlist</button>
                 <button onClick={() => updateStatus(selected._id, 'rejected')} className="flex-1 bg-red-50 text-red-500 font-semibold px-4 py-2.5 rounded-xl hover:bg-red-100 transition-colors">✗ Reject</button>
                 <button onClick={() => deleteApplicant(selected._id)} className="px-4 py-2.5 text-red-300 hover:text-red-500 rounded-xl hover:bg-red-50 transition-colors"><Trash2 className="w-4 h-4" /></button>
               </div>
