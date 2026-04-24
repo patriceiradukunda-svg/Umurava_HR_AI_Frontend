@@ -78,7 +78,7 @@ function exportCSV(rows: any[], filename: string) {
   a.download = filename; a.click()
 }
 
-// ─── UI Components ────────────────────────────────────────────────────────────
+// ─── UI Components ──
 function FL({ children, req }: { children: React.ReactNode; req?: boolean }) {
   return (
     <label className="text-xs font-semibold text-sky-700 uppercase tracking-wide mb-1.5 block">
@@ -117,7 +117,7 @@ function ScoreRing({ score, size = 40 }: { score: number; size?: number }) {
   )
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Main Page ────
 export default function HRApplicantsPage() {
   const [allApplicants, setAllApplicants] = useState<any[]>([])  // full list after filters/sort
   const [jobs, setJobs]       = useState<any[]>([])
@@ -330,13 +330,13 @@ export default function HRApplicantsPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="font-display text-2xl font-bold text-sky-950">Applicants</h1>
-          <p className="text-sky-400 text-sm mt-1">
+          {/* <p className="text-sky-400 text-sm mt-1">
             <span className="font-semibold text-sky-700">{stats.total || 0}</span> total ·{' '}
             <span className="font-semibold text-amber-600">{stats.pending || 0}</span> pending ·{' '}
             <span className="font-semibold text-sky-600">{stats.screened || 0}</span> screened ·{' '}
             <span className="font-semibold text-emerald-600">{stats.shortlisted || 0}</span> shortlisted ·{' '}
             <span className="font-semibold text-red-400">{stats.rejected || 0}</span> rejected
-          </p>
+          </p> */}
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => load()} className="w-9 h-9 flex items-center justify-center rounded-xl border border-sky-200 bg-white text-sky-500 hover:bg-sky-50 transition-colors" title="Refresh">
@@ -378,8 +378,8 @@ export default function HRApplicantsPage() {
         ].map(s => (
           <button key={s.label} onClick={() => setStatus(statusFilter === s.filter ? 'all' : s.filter)}
             className={`${s.bg} border-2 ${statusFilter === s.filter ? s.border : 'border-transparent'} rounded-2xl p-4 text-left hover:shadow-sm transition-all`}>
-            <p className={`font-display text-3xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-sky-500 text-xs font-semibold mt-0.5">{s.label}</p>
+            <p className={`text-3xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-sky-500 text-xs font-semibold mt-0.5 ml-2">{s.label}</p>
           </button>
         ))}
       </div>

@@ -240,13 +240,13 @@ export default function HRJobsPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl font-bold text-sky-950">Job Postings</h1>
-          <p className="text-sky-400 text-sm mt-1">
-            <span className="font-semibold text-sky-600">{stats.active || 0}</span> active ·{' '}
-            <span className="font-semibold text-amber-600">{stats.draft || 0}</span> draft ·{' '}
-            <span className="font-semibold text-indigo-600">{stats.screening || 0}</span> screening ·{' '}
-            <span className="font-semibold text-slate-400">{stats.closed || 0}</span> closed
-          </p>
+          <h1 className=" text-2xl font-bold text-sky-950">Job Postings</h1>
+          {/* <p className="text-sky-400 text-sm mt-1">
+            <span className="font-semibold text-sky-600">{stats.active || 0} </span> active ·{' '}
+            <span className="font-semibold text-amber-600">{stats.draft || 0} </span> draft ·{' '}
+            <span className="font-semibold text-indigo-600">{stats.screening || 0} </span> screening ·{' '}
+            <span className="font-semibold text-slate-400">{stats.closed || 0} </span> closed
+          </p> */}
         </div>
         <button onClick={openCreate}
           className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-5 py-2.5 rounded-xl transition-colors shadow-sm">
@@ -265,8 +265,8 @@ export default function HRJobsPage() {
           <button key={s.label}
             onClick={() => setStatus(s.label === 'Total Jobs' ? 'all' : s.label.toLowerCase().replace('in ', ''))}
             className={`${s.bg} border ${s.border} rounded-2xl p-4 text-left hover:shadow-sm transition-all`}>
-            <p className={`font-display text-2xl font-bold ${s.color}`}>{s.value}</p>
-            <p className="text-sky-500 text-xs font-medium mt-0.5">{s.label}</p>
+            <p className={`text-2xl font-bold ${s.color}`}>{s.value}</p>
+            <p className="text-sky-500 text-xs font-medium ml-2 mt-0.5">{s.label}</p>
           </button>
         ))}
       </div>
@@ -410,12 +410,12 @@ export default function HRJobsPage() {
                           </button>
                         </div>
                       </div>
-                      <h3 className="font-display font-bold text-sky-900 text-base leading-tight truncate">{job.title}</h3>
+                      <h3 className=" font-bold text-sky-900 text-base leading-tight truncate">{job.title}</h3>
                     </div>
 
                     {/* Applicant count */}
                     <div className="flex-shrink-0 text-right">
-                      <div className="font-display text-xl font-bold text-sky-500">{job.applicantCount || 0}</div>
+                      <div className=" text-xl font-bold text-sky-500">{job.applicantCount || 0}</div>
                       <div className="text-sky-300 text-[10px] font-medium">applicants</div>
                     </div>
                   </div>
@@ -464,7 +464,7 @@ export default function HRJobsPage() {
                     <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Posted {timeAgo(job.createdAt)}</span>
                     {job.applicationDeadline && (
                       <span className="flex items-center gap-1 ml-auto">
-                        <Clock className="w-3 h-3" />Closes {new Date(job.applicationDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        <Clock className="w-3 h-3" />Closes on {new Date(job.applicationDeadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                       </span>
                     )}
                   </div>

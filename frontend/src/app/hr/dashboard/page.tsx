@@ -395,16 +395,16 @@ export default function HRDashboardPage() {
               <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${k.accent} flex items-center justify-center shadow-sm`}>
                 <k.icon className="w-5 h-5 text-white" />
               </div>
-              <Trend value={k.trend} />
+              {/* <Trend value={k.trend} /> */}
             </div>
-            <div className="font-display text-3xl font-bold text-sky-900 tabular-nums">{k.value.toLocaleString()}</div>
+            <div className="text-3xl font-bold text-sky-900 tabular-nums">{k.value.toLocaleString()}</div>
             <div className="text-sky-800 text-sm font-semibold mt-0.5">{k.label}</div>
-            <div className="text-sky-400 text-xs mt-1">{k.sub}</div>
-            {k.warn && (
+            {/* <div className="text-sky-400 text-xs mt-1">{k.sub}</div> */}
+            {/* {k.warn && (
               <div className="mt-2 inline-flex items-center gap-1 text-amber-600 text-xs font-semibold bg-amber-50 px-2 py-0.5 rounded-full">
                 <AlertTriangle className="w-3 h-3" /> Needs attention
               </div>
-            )}
+            )} */}
           </div>
         ))}
       </div>
@@ -418,7 +418,7 @@ export default function HRDashboardPage() {
           <div key={k.label} className={`${k.bg} rounded-2xl p-5 border-2 transition-all hover:shadow-sm`}>
             <k.icon className={`w-5 h-5 ${k.color} mb-3`} />
             <div className="flex items-end gap-1">
-              <span className={`font-display text-3xl font-bold ${k.color}`}>{k.value}</span>
+              <span className={`text-3xl font-bold ${k.color}`}>{k.value}</span>
               <span className="text-sky-400 text-xs mb-1">{k.unit}</span>
             </div>
             <p className="text-sky-600 text-xs font-semibold mt-1">{k.label}</p>
@@ -798,7 +798,7 @@ export default function HRDashboardPage() {
             { label:'Open Roles',     value: stats.activeJobs || 0,             color:'text-white' },
             { label:'Shortlisted',    value: stats.shortlisted || 0,            color:'text-white' },
             { label:'Avg Score',      value: summary.avgScore || 0,             color:'text-sky-300' },
-            { label:'Conversion',     value:`${stats.shortlistRate || 0}%`,     color:'text-emerald-400' },
+            // { label:'Conversion',     value:`${stats.shortlistRate || 0}%`,     color:'text-emerald-400' },
           ].map((s, i, arr) => (
             <div key={s.label} className="flex items-center gap-6">
               <div className="text-center">
