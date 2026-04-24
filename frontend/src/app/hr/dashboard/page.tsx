@@ -1,17 +1,18 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { dashboardAPI, analyticsAPI, jobsAPI, screeningAPI } from '@/lib/api'
+import { dashboardAPI, analyticsAPI, jobsAPI } from '@/lib/api'
 import Link from 'next/link'
 import {
-  Briefcase, Users, Star, CheckCircle, ArrowRight, TrendingUp,
-  AlertTriangle, ChevronRight, Activity, Target, Zap, BarChart2,
-  UserCheck, FileText, Bell, Plus, RefreshCw, ArrowUpRight,
-  ArrowDownRight, Minus, Eye, X, Download, Filter, GitBranch,
-  Trophy, Award, Clock, Calendar,
+  Briefcase, Users, Star, CheckCircle, ArrowRight, AlertTriangle,
+  ChevronRight, Activity, Target, Zap, BarChart2, UserCheck,
+  FileText, Bell, Plus, RefreshCw, ArrowUpRight, ArrowDownRight,
+  Minus, Eye, X, Download, Filter, GitBranch, Trophy, Award,
+  Clock, Calendar, Lightbulb, BookOpen, TrendingUp, TrendingDown,
+  ChevronDown, ChevronUp,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
-  ResponsiveContainer, PieChart, Pie, Cell,
+  ResponsiveContainer, Cell,
 } from 'recharts'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -20,69 +21,42 @@ interface Stats {
   totalApplicants: number; newApplicantsThisWeek: number
   shortlisted: number; shortlistRate: number; screeningRuns: number
 }
+interface DateRange { from: string; to: string; days: string }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-const SCORE_COLORS = ['#ef4444', '#f59e0b', '#38bdf8', '#0284c7', '#10b981', '#6366f1']
-const PIPELINE_STAGES = [
-  { key: 'applied',     label: 'Applied',     color: '#38bdf8', bg: 'bg-sky-100',     text: 'text-sky-700',     href: '/hr/applicants' },
-  { key: 'screening',   label: 'Screening',   color: '#818cf8', bg: 'bg-indigo-100',  text: 'text-indigo-700',  href: '/hr/screening' },
-  { key: 'shortlisted', label: 'Shortlisted', color: '#34d399', bg: 'bg-emerald-100', text: 'text-emerald-700', href: '/hr/shortlist' },
-  { key: 'interview',   label: 'Interview',   color: '#fbbf24', bg: 'bg-amber-100',   text: 'text-amber-700',   href: '/hr/applicants' },
-  { key: 'offer',       label: 'Offer',       color: '#f472b6', bg: 'bg-pink-100',    text: 'text-pink-700',    href: '/hr/applicants' },
-  { key: 'hired',       label: 'Hired',       color: '#10b981', bg: 'bg-teal-100',    text: 'text-teal-700',    href: '/hr/applicants' },
-]
+const SCORE_COLORS = ['#ef4444','#f59e0b','#38bdf8','#0284c7','#10b981','#6366f1']
 const STATUS_COLORS: Record<string, string> = {
-  active:   'bg-emerald-100 text-emerald-700 border border-emerald-200',
-  closed:   'bg-slate-100 text-slate-500 border border-slate-200',
-  draft:    'bg-amber-100 text-amber-700 border border-amber-200',
-  paused:   'bg-orange-100 text-orange-700 border border-orange-200',
+  active: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+  closed: 'bg-slate-100 text-slate-500 border border-slate-200',
+  draft:  'bg-amber-100 text-amber-700 border border-amber-200',
 }
-const PIPELINE_STATUS_COLORS: Record<string, string> = {
-  pending:     'bg-amber-400',
-  screened:    'bg-sky-400',
-  shortlisted: 'bg-emerald-400',
-  rejected:    'bg-red-400',
-}
-const DATE_RANGES = ['Today', '7 days', '30 days', '90 days', 'All time']
+const QUICK_RANGES = [
+  { label: 'Today',    days: '1' },
+  { label: '7 days',   days: '7' },
+  { label: '30 days',  days: '30' },
+  { label: '90 days',  days: '90' },
+  { label: 'All time', days: '' },
+]
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function Trend({ value }: { value: number }) {
   if (value > 0) return <span className="inline-flex items-center gap-0.5 text-emerald-600 text-xs font-semibold"><ArrowUpRight className="w-3 h-3" />+{value}</span>
   if (value < 0) return <span className="inline-flex items-center gap-0.5 text-red-500 text-xs font-semibold"><ArrowDownRight className="w-3 h-3" />{value}</span>
   return <span className="inline-flex items-center gap-0.5 text-sky-400 text-xs font-semibold"><Minus className="w-3 h-3" />—</span>
 }
 
-function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
-  const r = size * 0.39; const circ = 2 * Math.PI * r
-  const color = score >= 80 ? '#10b981' : score >= 60 ? '#0ea5e9' : score >= 40 ? '#f59e0b' : '#ef4444'
+function ScoreRing({ score, size = 44 }: { score: number; size?: number }) {
+  const r = size * 0.38; const c = 2 * Math.PI * r
+  const col = score >= 80 ? '#10b981' : score >= 60 ? '#0ea5e9' : score >= 40 ? '#f59e0b' : '#ef4444'
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size/2} cy={size/2} r={r} strokeWidth={4} className="stroke-sky-100 fill-none" />
-        <circle cx={size/2} cy={size/2} r={r} strokeWidth={4} fill="none"
-          stroke={color} strokeLinecap="round"
-          strokeDasharray={`${(score / 100) * circ} ${circ}`} />
+        <circle cx={size/2} cy={size/2} r={r} strokeWidth={3} className="stroke-sky-100 fill-none" />
+        <circle cx={size/2} cy={size/2} r={r} strokeWidth={3} fill="none"
+          stroke={col} strokeLinecap="round" strokeDasharray={`${(score/100)*c} ${c}`} />
       </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-sky-700" style={{ fontSize: size * 0.22 }}>{score}</span>
-    </div>
-  )
-}
-
-function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`bg-sky-100 animate-pulse rounded-2xl ${className}`} />
-}
-
-function DashboardSkeleton() {
-  return (
-    <div className="space-y-6">
-      <div className="flex justify-between"><Skeleton className="h-10 w-64" /><Skeleton className="h-10 w-48" /></div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}</div>
-      <Skeleton className="h-36" />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
-      <div className="grid lg:grid-cols-3 gap-5"><Skeleton className="lg:col-span-2 h-72" /><Skeleton className="h-72" /></div>
-      <div className="grid lg:grid-cols-2 gap-5"><Skeleton className="h-64" /><Skeleton className="h-64" /></div>
-      <Skeleton className="h-72" />
-      <Skeleton className="h-20" />
+      <span className="absolute inset-0 flex items-center justify-center font-display font-bold text-sky-800"
+        style={{ fontSize: size * 0.22 }}>{score}</span>
     </div>
   )
 }
@@ -97,67 +71,98 @@ const ChartTip = ({ active, payload, label }: any) => {
   )
 }
 
-function buildPipeline(stats: Stats) {
-  const total = stats.totalApplicants || 0
-  return [
-    { key: 'applied',     count: total },
-    { key: 'screening',   count: stats.screeningRuns  || Math.round(total * 0.7) },
-    { key: 'shortlisted', count: stats.shortlisted    || 0 },
-    { key: 'interview',   count: Math.round((stats.shortlisted || 0) * 0.6) },
-    { key: 'offer',       count: Math.round((stats.shortlisted || 0) * 0.25) },
-    { key: 'hired',       count: Math.round((stats.shortlisted || 0) * 0.12) },
-  ]
+function Skeleton({ className = '' }: { className?: string }) {
+  return <div className={`bg-sky-100 animate-pulse rounded-2xl ${className}`} />
 }
 
-// ─── Export helpers ───────────────────────────────────────────────────────────
-function exportCSV(rows: any[], filename: string) {
-  if (!rows.length) return
-  const headers = Object.keys(rows[0])
-  const csv = [headers.join(','), ...rows.map(r => headers.map(h => JSON.stringify(r[h] ?? '')).join(','))].join('\n')
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-  a.download = filename; a.click()
-}
-
-function exportJSON(data: any, filename: string) {
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }))
-  a.download = filename; a.click()
+// ─── Collapsible section ──────────────────────────────────────────────────────
+function Section({ title, icon: Icon, badge, children, defaultOpen = true }: {
+  title: string; icon: any; badge?: string | number; children: React.ReactNode; defaultOpen?: boolean
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.07)' }}>
+      <button onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-3 px-6 py-4 hover:bg-sky-50 transition-colors border-b border-sky-50">
+        <div className="w-8 h-8 rounded-lg bg-sky-100 flex items-center justify-center flex-shrink-0">
+          <Icon className="w-4 h-4 text-sky-600" />
+        </div>
+        <span className="font-display font-bold text-sky-900 flex-1 text-left">{title}</span>
+        {badge !== undefined && (
+          <span className="bg-sky-100 text-sky-600 text-xs font-bold px-2 py-0.5 rounded-full">{badge}</span>
+        )}
+        {open ? <ChevronUp className="w-4 h-4 text-sky-400 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-sky-400 flex-shrink-0" />}
+      </button>
+      {open && <div>{children}</div>}
+    </div>
+  )
 }
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 export default function HRDashboardPage() {
-  const [dashData, setDashData]       = useState<any>(null)
-  const [analytics, setAnalytics]     = useState<any>(null)
-  const [jobs, setJobs]               = useState<any[]>([])
-  const [pipelineJob, setPipelineJob] = useState('')
+  const [dashData, setDashData]   = useState<any>(null)
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [jobs, setJobs]           = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [showExport, setShowExport] = useState(false)
+  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
+
+  // Date range state
+  const [activeRange, setActiveRange] = useState('7 days')
+  const [customFrom, setCustomFrom]   = useState('')
+  const [customTo, setCustomTo]       = useState('')
+  const [showCustom, setShowCustom]   = useState(false)
+
+  // Analytics filter state
+  const [aJobFilter, setAJobFilter]   = useState('all')
+  const [aDeptFilter, setADeptFilter] = useState('all')
+  const [aDays, setADays]             = useState('30')
+
+  // Pipeline state
+  const [pipelineJob, setPipelineJob]   = useState('')
   const [pipelineData, setPipelineData] = useState<any>(null)
   const [pipelineLoading, setPipelineLoading] = useState(false)
-  const [loading, setLoading]         = useState(true)
-  const [refreshing, setRefreshing]   = useState(false)
-  const [dateRange, setDateRange]     = useState('7 days')
-  const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
-  const [showExportMenu, setShowExportMenu] = useState(false)
 
   const now = new Date()
   const hour = now.getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const todayStr = now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
 
+  // Build date params from active range
+  const buildDateParams = useCallback(() => {
+    if (customFrom && customTo) return { from: customFrom, to: customTo }
+    const r = QUICK_RANGES.find(r => r.label === activeRange)
+    return r?.days ? { days: r.days } : {}
+  }, [activeRange, customFrom, customTo])
+
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     try {
-      const [dRes, aRes, jRes] = await Promise.all([
-        dashboardAPI.get(),
-        analyticsAPI.get(),
+      const dateParams = buildDateParams()
+      const [dRes, jRes] = await Promise.all([
+        dashboardAPI.get(dateParams),
         jobsAPI.list(),
       ])
       setDashData(dRes.data.data)
-      setAnalytics(aRes.data.data)
       setJobs(jRes.data.data || [])
     } catch {}
     finally { setLoading(false); setRefreshing(false) }
-  }, [])
+  }, [buildDateParams])
+
+  const loadAnalytics = useCallback(async () => {
+    const params: any = {}
+    if (aJobFilter !== 'all')  params.jobId      = aJobFilter
+    if (aDeptFilter !== 'all') params.department  = aDeptFilter
+    if (aDays)                 params.days        = aDays
+    try {
+      const r = await analyticsAPI.get(params)
+      setAnalytics(r.data.data)
+    } catch {}
+  }, [aJobFilter, aDeptFilter, aDays])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => { loadAnalytics() }, [loadAnalytics])
 
   useEffect(() => {
     if (!pipelineJob) { setPipelineData(null); return }
@@ -168,7 +173,20 @@ export default function HRDashboardPage() {
       .finally(() => setPipelineLoading(false))
   }, [pipelineJob])
 
-  if (loading) return <DashboardSkeleton />
+  const applyCustomRange = () => {
+    if (!customFrom || !customTo) return
+    setActiveRange('Custom')
+    setShowCustom(false)
+    load(false)
+  }
+
+  if (loading) return (
+    <div className="space-y-6">
+      <div className="flex justify-between"><Skeleton className="h-12 w-64" /><Skeleton className="h-10 w-80" /></div>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32" />)}</div>
+      <Skeleton className="h-36" /><Skeleton className="h-72" /><Skeleton className="h-72" />
+    </div>
+  )
 
   const stats: Stats     = dashData?.stats          || {}
   const recentJobs       = dashData?.recentJobs     || []
@@ -177,110 +195,141 @@ export default function HRDashboardPage() {
   const summary          = analytics?.summary       || {}
   const scoreDistribution = analytics?.scoreDistribution || []
   const topSkillGaps     = analytics?.topSkillGaps  || []
-  const pipelineSummary  = analytics?.pipelineSummary || []
+  const skillGapInsights = analytics?.skillGapInsights || []
+  const marketRecs       = analytics?.marketRecommendations || []
+  const hiringRecs       = analytics?.hiringRecommendations || []
   const topCandidates    = analytics?.topCandidates || []
-  const pipeline         = buildPipeline(stats)
-
-  const weeklyTrend = aiActivity.length >= 4 ? aiActivity : Array.from({ length: 7 }, (_, i) => ({
-    label: ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'][i], count: 0,
-  }))
-
-  const kpis = [
-    { label: 'Total Applicants',  value: stats.totalApplicants  || 0, sub: `+${stats.newApplicantsThisWeek || 0} this week`,    trend: stats.newApplicantsThisWeek || 0, icon: Users,       accent: 'from-sky-500 to-sky-600',     warn: false },
-    { label: 'Active Openings',   value: stats.activeJobs       || 0, sub: `+${stats.newJobsThisWeek || 0} posted this week`,   trend: stats.newJobsThisWeek || 0,      icon: Briefcase,   accent: 'from-indigo-500 to-sky-500',  warn: stats.activeJobs === 0 },
-    { label: 'Shortlisted',       value: stats.shortlisted      || 0, sub: `${stats.shortlistRate || 0}% conversion rate`,      trend: 0,                               icon: Star,        accent: 'from-emerald-500 to-teal-500',warn: (stats.shortlistRate || 0) < 10 && (stats.totalApplicants || 0) > 5 },
-    { label: 'Screenings Run',    value: stats.screeningRuns    || 0, sub: 'Evaluations completed',                             trend: 0,                               icon: CheckCircle, accent: 'from-sky-400 to-cyan-500',    warn: false },
-  ]
-
-  const analyticsKpis = [
-    { label: 'Avg Time-to-Shortlist', value: summary.avgTimeToShortlist || 0, unit: 'min', icon: Clock,      color: 'text-sky-600',     bg: 'bg-sky-50' },
-    { label: 'Screening Accuracy',    value: summary.aiAccuracy || 94,         unit: '%',   icon: Target,     color: 'text-emerald-600', bg: 'bg-emerald-50' },
-    { label: 'Avg Candidate Score',   value: summary.avgScore   || 0,          unit: '/100',icon: Award,      color: 'text-indigo-600',  bg: 'bg-indigo-50' },
-    { label: 'Top Score Achieved',    value: summary.topScore   || 0,          unit: '/100',icon: Trophy,     color: 'text-amber-600',   bg: 'bg-amber-50' },
-  ]
+  const trendData        = analytics?.trendData     || []
 
   const insights: { icon: any; color: string; bg: string; title: string; desc: string; href: string; urgency: string }[] = []
   if (stats.activeJobs > 0 && !stats.totalApplicants)
-    insights.push({ icon: AlertTriangle, color: 'text-amber-600', bg: 'bg-amber-50', title: 'No applicants yet', desc: `${stats.activeJobs} open roles have zero applications.`, href: '/hr/jobs', urgency: 'high' })
-  if ((stats.shortlistRate || 0) < 10 && (stats.totalApplicants || 0) > 5)
-    insights.push({ icon: Target, color: 'text-red-500', bg: 'bg-red-50', title: 'Low shortlist rate', desc: 'Below 10% of applicants are shortlisted. Review screening criteria.', href: '/hr/screening', urgency: 'high' })
-  if (!stats.screeningRuns && (stats.totalApplicants || 0) > 0)
-    insights.push({ icon: Zap, color: 'text-sky-600', bg: 'bg-sky-50', title: 'Run your first screening', desc: `${stats.totalApplicants} applicants waiting to be evaluated.`, href: '/hr/screening', urgency: 'medium' })
-  if ((stats.shortlisted || 0) > 0)
-    insights.push({ icon: UserCheck, color: 'text-emerald-600', bg: 'bg-emerald-50', title: `${stats.shortlisted} candidates shortlisted`, desc: 'Review and move top picks to interview stage.', href: '/hr/shortlist', urgency: 'low' })
+    insights.push({ icon: AlertTriangle, color:'text-amber-600', bg:'bg-amber-50', title:'No applicants yet',       desc:`${stats.activeJobs} roles have zero applications.`,       href:'/hr/jobs',       urgency:'high' })
+  if ((stats.shortlistRate||0)<10 && (stats.totalApplicants||0)>5)
+    insights.push({ icon: Target,        color:'text-red-500',   bg:'bg-red-50',   title:'Low shortlist rate',      desc:'Below 10% shortlisted. Review screening criteria.',          href:'/hr/screening',  urgency:'high' })
+  if (!stats.screeningRuns && (stats.totalApplicants||0)>0)
+    insights.push({ icon: Zap,           color:'text-sky-600',   bg:'bg-sky-50',   title:'Screenings pending',      desc:`${stats.totalApplicants} applicants awaiting evaluation.`,   href:'/hr/screening',  urgency:'medium' })
+  if ((stats.shortlisted||0)>0)
+    insights.push({ icon: UserCheck,     color:'text-emerald-600',bg:'bg-emerald-50',title:`${stats.shortlisted} shortlisted`, desc:'Review and move top picks to interview.', href:'/hr/shortlist',  urgency:'low' })
   if (!insights.length)
-    insights.push({ icon: Activity, color: 'text-sky-500', bg: 'bg-sky-50', title: 'Pipeline looks healthy', desc: 'No urgent actions needed. Keep the momentum going!', href: '/hr/applicants', urgency: 'low' })
+    insights.push({ icon: Activity,      color:'text-sky-500',   bg:'bg-sky-50',   title:'Pipeline looks healthy',  desc:'No urgent actions needed. Keep it up!',                     href:'/hr/applicants', urgency:'low' })
 
-  // Pipeline kanban columns
+  const uniqueDepts = [...new Set(jobs.map(j => j.department).filter(Boolean))]
+
   const kanbanCols = [
-    { key: 'applied',     label: 'Applied',      color: 'bg-sky-50 text-sky-600',          border: 'border-sky-400' },
-    { key: 'screened',    label: 'Screened',      color: 'bg-cyan-50 text-cyan-700',         border: 'border-cyan-400' },
-    { key: 'shortlisted', label: 'Shortlisted',   color: 'bg-emerald-50 text-emerald-700',   border: 'border-emerald-400' },
-    { key: 'rejected',    label: 'Not Selected',  color: 'bg-red-50 text-red-600',           border: 'border-red-300' },
+    { key:'applied',     label:'Applied',       color:'bg-sky-50 text-sky-600',         border:'border-sky-400' },
+    { key:'screened',    label:'Screened',       color:'bg-cyan-50 text-cyan-700',        border:'border-cyan-400' },
+    { key:'shortlisted', label:'Shortlisted',    color:'bg-emerald-50 text-emerald-700',  border:'border-emerald-400' },
+    { key:'rejected',    label:'Not Selected',   color:'bg-red-50 text-red-600',          border:'border-red-300' },
   ]
 
-  const rankStyle = (rank: number) => {
-    if (rank === 1) return 'bg-amber-100 border-amber-300 text-amber-700'
-    if (rank === 2) return 'bg-slate-100 border-slate-300 text-slate-600'
-    if (rank === 3) return 'bg-orange-100 border-orange-300 text-orange-600'
-    return 'bg-sky-50 border-sky-200 text-sky-600'
+  const exportDashboard = () => {
+    const rows = recentJobs.map((j: any) => ({
+      Title: j.title, Department: j.department, Location: j.location,
+      Status: j.status, Applicants: j.applicantCount || 0,
+    }))
+    const h = Object.keys(rows[0] || {})
+    const csv = [h.join(','), ...rows.map((r: any) => h.map(k => JSON.stringify(r[k]??'')).join(','))].join('\n')
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([csv], { type:'text/csv' }))
+    a.download = `dashboard-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    setShowExport(false)
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-sky-400 text-sm font-medium">{greeting} 👋</p>
           <h1 className="font-display text-2xl font-bold text-sky-950 mt-0.5">HR Command Center</h1>
-          <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1">
             <Calendar className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-sky-400 text-xs">{todayStr}</span>
           </div>
         </div>
+
+        {/* ── Controls row — all on one line ── */}
         <div className="flex items-center gap-2 flex-wrap">
-          {/* Date range filter */}
-          <div className="flex items-center gap-1 bg-white border border-sky-200 rounded-xl p-1">
-            {DATE_RANGES.map(r => (
-              <button key={r} onClick={() => setDateRange(r)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-all ${dateRange === r ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-500 hover:text-sky-700'}`}>
-                {r}
+          {/* Quick range pills */}
+          <div className="flex items-center gap-1 bg-white border border-sky-200 rounded-xl p-1 h-10">
+            {QUICK_RANGES.map(r => (
+              <button key={r.label} onClick={() => { setActiveRange(r.label); setCustomFrom(''); setCustomTo(''); setShowCustom(false) }}
+                className={`text-xs font-semibold px-2.5 py-1 rounded-lg transition-all whitespace-nowrap ${activeRange === r.label ? 'bg-sky-600 text-white shadow-sm' : 'text-sky-500 hover:text-sky-700'}`}>
+                {r.label}
               </button>
             ))}
           </div>
-          <button onClick={() => load(true)}
-            className={`w-9 h-9 flex items-center justify-center rounded-xl border border-sky-200 bg-white text-sky-500 hover:bg-sky-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}>
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          {/* Export menu */}
+
+          {/* Custom date range */}
           <div className="relative">
-            <button onClick={() => setShowExportMenu(v => !v)}
-              className="flex items-center gap-2 border border-sky-200 bg-white text-sky-600 text-sm font-semibold px-4 py-2 rounded-xl hover:bg-sky-50 transition-colors">
-              <Download className="w-4 h-4" /> Export
+            <button onClick={() => setShowCustom(v => !v)}
+              className={`h-10 flex items-center gap-2 px-3 border rounded-xl text-xs font-semibold transition-all ${activeRange === 'Custom' ? 'bg-sky-600 text-white border-sky-600' : 'bg-white border-sky-200 text-sky-600 hover:border-sky-400'}`}>
+              <Calendar className="w-3.5 h-3.5" />
+              {activeRange === 'Custom' && customFrom ? `${customFrom} → ${customTo}` : 'Custom'}
             </button>
-            {showExportMenu && (
-              <div className="absolute right-0 top-full mt-2 bg-white border border-sky-100 rounded-2xl shadow-xl z-30 w-52 py-2 overflow-hidden">
-                <p className="text-sky-400 text-xs font-bold uppercase tracking-wide px-4 py-2">Export as</p>
-                <button onClick={() => { exportCSV(recentJobs.map((j: any) => ({ title: j.title, location: j.location, status: j.status, applicants: j.applicantCount || 0 })), 'jobs-report.csv'); setShowExportMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-sky-400" /> Jobs Report (CSV)
-                </button>
-                <button onClick={() => { exportCSV(topCandidates.map((c: any) => ({ name: `${c.firstName} ${c.lastName}`, score: c.matchScore, location: c.location })), 'top-candidates.csv'); setShowExportMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2">
-                  <Users className="w-4 h-4 text-sky-400" /> Top Candidates (CSV)
-                </button>
-                <button onClick={() => { exportJSON({ stats, summary, pipelineSummary, topSkillGaps, scoreDistribution }, 'analytics-report.json'); setShowExportMenu(false) }}
-                  className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2">
-                  <BarChart2 className="w-4 h-4 text-sky-400" /> Full Analytics (JSON)
-                </button>
-              </div>
+            {showCustom && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowCustom(false)} />
+                <div className="absolute right-0 top-full mt-2 bg-white border border-sky-100 rounded-2xl shadow-xl z-30 p-4 w-72">
+                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-3">Custom date range</p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="text-xs text-sky-500 font-semibold mb-1 block">From</label>
+                      <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
+                        className="input-sky text-sm" max={customTo || undefined} />
+                    </div>
+                    <div>
+                      <label className="text-xs text-sky-500 font-semibold mb-1 block">To</label>
+                      <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
+                        className="input-sky text-sm" min={customFrom || undefined} />
+                    </div>
+                    <button onClick={applyCustomRange} disabled={!customFrom || !customTo}
+                      className="w-full bg-sky-600 text-white text-sm font-semibold py-2 rounded-xl hover:bg-sky-700 transition-colors disabled:opacity-40">
+                      Apply Range
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
-          <Link href="/hr/jobs" className="flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
+
+          {/* Refresh */}
+          <button onClick={() => load(true)}
+            className={`w-10 h-10 flex items-center justify-center rounded-xl border border-sky-200 bg-white text-sky-500 hover:bg-sky-50 transition-colors ${refreshing ? 'animate-spin' : ''}`}>
+            <RefreshCw className="w-4 h-4" />
+          </button>
+
+          {/* Export */}
+          <div className="relative">
+            <button onClick={() => setShowExport(v => !v)}
+              className="h-10 flex items-center gap-2 border border-sky-200 bg-white text-sky-600 text-sm font-semibold px-4 rounded-xl hover:bg-sky-50 transition-colors">
+              <Download className="w-4 h-4" /> Export
+            </button>
+            {showExport && (
+              <>
+                <div className="fixed inset-0 z-20" onClick={() => setShowExport(false)} />
+                <div className="absolute right-0 top-full mt-2 bg-white border border-sky-100 rounded-2xl shadow-xl z-30 w-52 py-2">
+                  <button onClick={exportDashboard} className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2">
+                    <FileText className="w-4 h-4 text-sky-400" /> Jobs Report (CSV)
+                  </button>
+                  <button onClick={() => { const d = JSON.stringify({ stats, summary }, null, 2); const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([d], {type:'application/json'})); a.download='dashboard.json'; a.click(); setShowExport(false) }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2">
+                    <BarChart2 className="w-4 h-4 text-sky-400" /> Full Report (JSON)
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Post Job */}
+          <Link href="/hr/jobs" className="h-10 flex items-center gap-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-semibold px-4 rounded-xl transition-colors shadow-sm">
             <Plus className="w-4 h-4" /> Post Job
           </Link>
-          <Link href="/hr/screening" className="flex items-center gap-2 bg-sky-950 hover:bg-sky-900 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors shadow-sm">
+
+          {/* Screen Now */}
+          <Link href="/hr/screening" className="h-10 flex items-center gap-2 bg-sky-950 hover:bg-sky-900 text-white text-sm font-semibold px-4 rounded-xl transition-colors shadow-sm">
             <Zap className="w-4 h-4" /> Screen Now
           </Link>
         </div>
@@ -288,10 +337,14 @@ export default function HRDashboardPage() {
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        {kpis.map((k) => (
-          <div key={k.label}
-            className={`bg-white rounded-2xl p-5 border-2 transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 ${k.warn ? 'border-amber-200' : 'border-transparent'}`}
-            style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
+        {[
+          { label:'Total Applicants', value:stats.totalApplicants||0, sub:`+${stats.newApplicantsThisWeek||0} in period`, trend:stats.newApplicantsThisWeek||0, icon:Users,       accent:'from-sky-500 to-sky-600',    warn:false },
+          { label:'Active Openings',  value:stats.activeJobs||0,      sub:`+${stats.newJobsThisWeek||0} posted`,          trend:stats.newJobsThisWeek||0,       icon:Briefcase,   accent:'from-indigo-500 to-sky-500', warn:stats.activeJobs===0 },
+          { label:'Shortlisted',      value:stats.shortlisted||0,     sub:`${stats.shortlistRate||0}% conversion`,        trend:0,                              icon:Star,        accent:'from-emerald-500 to-teal-500',warn:(stats.shortlistRate||0)<10&&(stats.totalApplicants||0)>5 },
+          { label:'Screenings Run',   value:stats.screeningRuns||0,   sub:'Evaluations completed',                        trend:0,                              icon:CheckCircle, accent:'from-sky-400 to-cyan-500',   warn:false },
+        ].map(k => (
+          <div key={k.label} className={`bg-white rounded-2xl p-5 border-2 transition-all hover:shadow-md hover:-translate-y-0.5 ${k.warn ? 'border-amber-200' : 'border-transparent'}`}
+            style={{ boxShadow:'0 1px 6px rgba(14,165,233,0.08)' }}>
             <div className="flex items-start justify-between mb-4">
               <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${k.accent} flex items-center justify-center shadow-sm`}>
                 <k.icon className="w-5 h-5 text-white" />
@@ -306,52 +359,20 @@ export default function HRDashboardPage() {
         ))}
       </div>
 
-      {/* ── Recruitment Pipeline Funnel ── */}
-      <div className="bg-white rounded-2xl border border-sky-100 p-6" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h2 className="font-display font-bold text-sky-950 text-lg">Recruitment Pipeline</h2>
-            <p className="text-sky-400 text-xs mt-0.5">Candidate flow across all stages — click any stage to explore</p>
-          </div>
-        </div>
-        <div className="grid grid-cols-6 gap-3">
-          {pipeline.map((stage, i) => {
-            const s = PIPELINE_STAGES[i]
-            const maxCount = pipeline[0].count || 1
-            const pct = Math.max(10, (stage.count / maxCount) * 100)
-            return (
-              <Link key={stage.key} href={s.href} className="group flex flex-col items-center gap-2">
-                <span className="text-lg font-bold font-display tabular-nums text-sky-950 group-hover:text-sky-600 transition-colors">{stage.count.toLocaleString()}</span>
-                <div className="w-full rounded-xl overflow-hidden bg-sky-50 h-16 flex items-end">
-                  <div className="w-full rounded-xl transition-all duration-500 group-hover:opacity-100"
-                    style={{ height: `${pct}%`, minHeight: 14, background: s.color, opacity: 0.72 }} />
-                </div>
-                <span className={`text-xs font-semibold text-center px-2 py-0.5 rounded-lg ${s.bg} ${s.text}`}>{s.label}</span>
-                {i < pipeline.length - 1 && (
-                  <span className="text-sky-300 text-[10px] font-medium">
-                    {stage.count > 0 ? `${Math.round((pipeline[i + 1].count / Math.max(stage.count, 1)) * 100)}% →` : '—'}
-                  </span>
-                )}
-              </Link>
-            )
-          })}
-        </div>
-        <div className="mt-4 flex gap-1 h-1.5 rounded-full overflow-hidden">
-          {PIPELINE_STAGES.map(s => <div key={s.key} className="flex-1 rounded-full" style={{ background: s.color, opacity: 0.5 }} />)}
-        </div>
-      </div>
-
-      {/* ── Analytics KPIs ── */}
+      {/* ── Screening Performance (2 cards only) ── */}
       <div>
-        <div className="flex items-center gap-2 mb-4">
+        <div className="flex items-center gap-2 mb-3">
           <BarChart2 className="w-4 h-4 text-sky-500" />
           <h2 className="font-display font-bold text-sky-950">Screening Performance</h2>
-          <span className="text-sky-400 text-xs ml-1">· Based on all completed evaluations</span>
+          <span className="text-sky-400 text-xs">· {activeRange}</span>
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {analyticsKpis.map((k) => (
+        <div className="grid grid-cols-2 gap-4">
+          {[
+            { label:'Avg Candidate Score', value:summary.avgScore||0, unit:'/100', icon:Award,  color:'text-indigo-600', bg:'bg-indigo-50' },
+            { label:'Top Score Achieved',  value:summary.topScore||0, unit:'/100', icon:Trophy, color:'text-amber-600',  bg:'bg-amber-50' },
+          ].map(k => (
             <div key={k.label} className={`${k.bg} rounded-2xl p-5 border border-transparent hover:shadow-sm transition-all`}
-              style={{ boxShadow: '0 1px 4px rgba(14,165,233,0.06)' }}>
+              style={{ boxShadow:'0 1px 4px rgba(14,165,233,0.06)' }}>
               <k.icon className={`w-5 h-5 ${k.color} mb-3`} />
               <div className="flex items-end gap-1">
                 <span className={`font-display text-3xl font-bold ${k.color}`}>{k.value}</span>
@@ -365,64 +386,56 @@ export default function HRDashboardPage() {
 
       {/* ── Jobs + Insights ── */}
       <div className="grid lg:grid-cols-3 gap-5">
-        {/* Jobs */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-sky-50">
-            <div className="flex items-center gap-2"><Briefcase className="w-4 h-4 text-sky-500" /><h2 className="font-display font-bold text-sky-900">Active Job Postings</h2></div>
-            <Link href="/hr/jobs" className="text-sky-500 text-xs font-semibold hover:text-sky-700 flex items-center gap-1">Manage all <ArrowRight className="w-3 h-3" /></Link>
-          </div>
+        {/* Active jobs */}
+        <Section title="Active Job Postings" icon={Briefcase} badge={stats.activeJobs||0} defaultOpen={true}>
           <div className="divide-y divide-sky-50">
             {recentJobs.length === 0 ? (
-              <div className="p-10 text-center">
-                <Briefcase className="w-8 h-8 text-sky-200 mx-auto mb-3" />
-                <p className="text-sky-400 text-sm mb-3">No jobs posted yet.</p>
-                <Link href="/hr/jobs" className="inline-flex items-center gap-1.5 bg-sky-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-sky-700 transition-colors"><Plus className="w-4 h-4" /> Post first job</Link>
+              <div className="p-8 text-center">
+                <p className="text-sky-400 text-sm mb-3">No jobs yet.</p>
+                <Link href="/hr/jobs" className="inline-flex items-center gap-1.5 bg-sky-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-sky-700"><Plus className="w-4 h-4" /> Post first job</Link>
               </div>
             ) : recentJobs.map((job: any) => (
-              <div key={job._id} className="flex items-center gap-4 px-6 py-3.5 hover:bg-sky-50 transition-colors group">
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Briefcase className="w-4 h-4 text-white" />
+              <div key={job._id} className="flex items-center gap-3 px-5 py-3 hover:bg-sky-50 transition-colors group">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-500 to-sky-600 flex items-center justify-center flex-shrink-0">
+                  <Briefcase className="w-3.5 h-3.5 text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sky-900 text-sm truncate">{job.title}</p>
-                  <p className="text-sky-400 text-xs mt-0.5">
-                    {job.department && <span className="font-medium text-sky-600">{job.department} · </span>}
-                    {job.location} · <span className="font-semibold text-sky-700">{job.applicantCount || 0}</span> applicants
-                  </p>
+                  <p className="text-sky-400 text-xs">{job.department} · <span className="font-semibold text-sky-600">{job.applicantCount||0}</span> applicants</p>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${STATUS_COLORS[job.status] || STATUS_COLORS.draft}`}>{job.status}</span>
-                <Link href="/hr/screening" className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1.5 bg-sky-600 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-sky-700">
-                  <Zap className="w-3 h-3" /> Screen
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${STATUS_COLORS[job.status]||STATUS_COLORS.draft}`}>{job.status}</span>
+                <Link href="/hr/screening" className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Zap className="w-4 h-4 text-sky-500" />
                 </Link>
               </div>
             ))}
           </div>
-          <div className="px-6 py-3 border-t border-sky-50 flex items-center justify-between bg-sky-50/40">
-            <span className="text-sky-400 text-xs">Showing {recentJobs.length} of {stats.activeJobs || 0} active jobs</span>
-            <Link href="/hr/applicants" className="text-xs text-sky-600 font-semibold hover:underline flex items-center gap-1"><Users className="w-3 h-3" /> View all applicants</Link>
+          <div className="px-5 py-3 border-t border-sky-50 flex items-center justify-between bg-sky-50/30">
+            <span className="text-sky-400 text-xs">{recentJobs.length} of {stats.activeJobs||0}</span>
+            <Link href="/hr/jobs" className="text-xs text-sky-600 font-semibold hover:underline flex items-center gap-1">Manage all <ArrowRight className="w-3 h-3" /></Link>
           </div>
-        </div>
+        </Section>
 
-        {/* Insights */}
-        <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
+        {/* Smart insights — spans 1 col */}
+        <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow:'0 1px 6px rgba(14,165,233,0.07)' }}>
           <div className="px-5 py-4 border-b border-sky-50 flex items-center gap-2">
             <Bell className="w-4 h-4 text-sky-500" />
-            <h2 className="font-display font-bold text-sky-900">Smart Insights</h2>
-            <span className="ml-auto bg-sky-100 text-sky-600 text-xs font-bold px-2 py-0.5 rounded-full">{insights.length}</span>
+            <h2 className="font-display font-bold text-sky-900 flex-1">Smart Insights</h2>
+            <span className="bg-sky-100 text-sky-600 text-xs font-bold px-2 py-0.5 rounded-full">{insights.length}</span>
           </div>
           <div className="p-4 space-y-3">
             {insights.map((ins, i) => (
-              <Link href={ins.href} key={i} className={`block ${ins.bg} rounded-xl p-4 hover:shadow-sm transition-all group border border-transparent hover:border-sky-100`}>
+              <Link href={ins.href} key={i} className={`block ${ins.bg} rounded-xl p-3.5 hover:shadow-sm transition-all group border border-transparent hover:border-sky-100`}>
                 <div className="flex items-start gap-3">
                   <ins.icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${ins.color}`} />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <p className={`text-sm font-semibold ${ins.color}`}>{ins.title}</p>
-                      {ins.urgency === 'high' && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">Urgent</span>}
+                      {ins.urgency==='high' && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">Urgent</span>}
                     </div>
                     <p className="text-sky-600 text-xs leading-relaxed">{ins.desc}</p>
                   </div>
-                  <ChevronRight className="w-3.5 h-3.5 text-sky-300 group-hover:text-sky-500 flex-shrink-0 mt-0.5 transition-colors" />
+                  <ChevronRight className="w-3.5 h-3.5 text-sky-300 group-hover:text-sky-500 flex-shrink-0 mt-0.5" />
                 </div>
               </Link>
             ))}
@@ -430,208 +443,253 @@ export default function HRDashboardPage() {
           <div className="mx-4 mb-4 bg-sky-950 rounded-xl p-4 text-white">
             <p className="text-sky-300 text-xs font-semibold uppercase tracking-wide mb-1">Shortlist Conversion</p>
             <div className="flex items-end gap-2">
-              <span className="font-display text-3xl font-bold">{stats.shortlistRate || 0}%</span>
+              <span className="font-display text-3xl font-bold">{stats.shortlistRate||0}%</span>
               <span className="text-sky-400 text-xs mb-1">of applicants pass</span>
             </div>
             <div className="mt-2 h-1.5 bg-sky-800 rounded-full overflow-hidden">
-              <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width: `${Math.min(100, stats.shortlistRate || 0)}%` }} />
+              <div className="h-full bg-sky-400 rounded-full transition-all" style={{ width:`${Math.min(100,stats.shortlistRate||0)}%` }} />
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Charts Row ── */}
-      <div className="grid lg:grid-cols-2 gap-5">
-        {/* Screening Activity */}
-        <div className="bg-white rounded-2xl border border-sky-100 p-5" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="font-display font-bold text-sky-900">Screening Activity</h2>
-              <p className="text-sky-400 text-xs mt-0.5">Evaluations over the last 7 days</p>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={weeklyTrend} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-              <defs>
-                <linearGradient id="skyGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25} />
-                  <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#7dd3fc' }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fontSize: 10, fill: '#bae6fd' }} axisLine={false} tickLine={false} />
-              <Tooltip content={<ChartTip />} />
-              <Area type="monotone" dataKey="count" name="Screenings" stroke="#0ea5e9" strokeWidth={2.5} fill="url(#skyGrad)" dot={false} activeDot={{ r: 4, fill: '#0ea5e9' }} />
-            </AreaChart>
-          </ResponsiveContainer>
+      {/* ── Skill Gaps & AI Recommendations (filterable) ── */}
+      <Section title="Skills Gap Analysis & Recommendations" icon={AlertTriangle} badge={topSkillGaps.length} defaultOpen={true}>
+        {/* Filter bar */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-50 flex-wrap bg-sky-50/40">
+          <Filter className="w-3.5 h-3.5 text-sky-400" />
+          <select value={aJobFilter} onChange={e => setAJobFilter(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white min-w-[160px]">
+            <option value="all">All Jobs</option>
+            {jobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
+          </select>
+          <select value={aDeptFilter} onChange={e => setADeptFilter(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
+            <option value="all">All Departments</option>
+            {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select value={aDays} onChange={e => setADays(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="">All time</option>
+          </select>
+          <button onClick={loadAnalytics}
+            className="text-xs bg-sky-600 text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-sky-700 transition-colors">
+            Apply
+          </button>
         </div>
 
-        {/* Score Distribution */}
-        <div className="bg-white rounded-2xl border border-sky-100 p-5" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <div className="mb-4">
-            <h2 className="font-display font-bold text-sky-900">Score Distribution</h2>
-            <p className="text-sky-400 text-xs mt-0.5">How candidates score across all evaluations</p>
-          </div>
-          {scoreDistribution.some((b: any) => b.count > 0) ? (
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={scoreDistribution} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 10, fill: '#7dd3fc' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: '#bae6fd' }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTip />} />
-                <Bar dataKey="count" name="Candidates" radius={[4, 4, 0, 0]}>
-                  {scoreDistribution.map((_: any, i: number) => <Cell key={i} fill={SCORE_COLORS[i % SCORE_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="h-44 flex items-center justify-center">
-              <p className="text-sky-300 text-sm">Run screenings to see score distribution.</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ── Pipeline Summary + Skill Coverage ── */}
-      <div className="grid lg:grid-cols-2 gap-5">
-        {/* Pipeline breakdown */}
-        <div className="bg-white rounded-2xl border border-sky-100 p-5" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <h2 className="font-display font-bold text-sky-900 mb-1">Pipeline Status Breakdown</h2>
-          <p className="text-sky-400 text-xs mb-5">All applicants by current stage</p>
-          {pipelineSummary.length > 0 ? (
-            <div className="space-y-3">
-              {pipelineSummary.map((p: any) => {
-                const total = pipelineSummary.reduce((a: number, b: any) => a + b.count, 0)
-                const pct = total > 0 ? Math.round((p.count / total) * 100) : 0
-                return (
-                  <div key={p._id} className="flex items-center gap-3">
-                    <span className="text-sky-700 text-sm capitalize w-24 flex-shrink-0 font-medium">{p._id}</span>
-                    <div className="flex-1 h-3 bg-sky-50 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all ${PIPELINE_STATUS_COLORS[p._id] || 'bg-sky-400'}`} style={{ width: `${pct}%` }} />
+        <div className="p-5 grid lg:grid-cols-2 gap-6">
+          {/* Skill gap bars */}
+          <div>
+            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-4">Skills Coverage in Shortlisted Pool</p>
+            {topSkillGaps.length === 0 ? (
+              <p className="text-sky-300 text-sm py-6 text-center">Run screenings to see skills data.</p>
+            ) : (
+              <div className="space-y-3">
+                {topSkillGaps.map((s: any) => (
+                  <div key={s.name} className="flex items-center gap-3">
+                    <span className="text-sky-700 text-sm w-28 flex-shrink-0 truncate font-medium">{s.name}</span>
+                    <div className="flex-1 h-2.5 bg-sky-50 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full transition-all"
+                        style={{ width:`${s.coverageRate}%`, background: s.coverageRate>=70?'#10b981':s.coverageRate>=50?'#f59e0b':'#ef4444' }} />
                     </div>
-                    <span className="font-bold text-sky-700 text-sm w-8 text-right tabular-nums">{p.count}</span>
-                    <span className="text-sky-400 text-xs w-10 text-right tabular-nums">{pct}%</span>
+                    <span className="font-bold text-sm w-10 text-right tabular-nums"
+                      style={{ color: s.coverageRate>=70?'#059669':s.coverageRate>=50?'#d97706':'#dc2626' }}>
+                      {s.coverageRate}%
+                    </span>
                   </div>
-                )
-              })}
-            </div>
-          ) : (
-            <p className="text-sky-300 text-sm text-center py-8">No data yet. Run a screening first.</p>
-          )}
-        </div>
-
-        {/* Skills Coverage */}
-        <div className="bg-white rounded-2xl border border-sky-100 p-5" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <h2 className="font-display font-bold text-sky-900 mb-1">Skills Coverage</h2>
-          <p className="text-sky-400 text-xs mb-5">% of shortlisted candidates meeting each skill threshold</p>
-          {topSkillGaps.length > 0 ? (
-            <div className="space-y-3">
-              {topSkillGaps.map((s: any) => (
-                <div key={s.name} className="flex items-center gap-3">
-                  <span className="text-sky-700 text-sm w-28 flex-shrink-0 truncate font-medium">{s.name}</span>
-                  <div className="flex-1 h-2.5 bg-sky-50 rounded-full overflow-hidden">
-                    <div className="h-full rounded-full transition-all"
-                      style={{ width: `${s.coverageRate}%`, background: s.coverageRate >= 70 ? '#10b981' : s.coverageRate >= 50 ? '#f59e0b' : '#ef4444' }} />
-                  </div>
-                  <span className="font-bold text-sm w-10 text-right tabular-nums"
-                    style={{ color: s.coverageRate >= 70 ? '#059669' : s.coverageRate >= 50 ? '#d97706' : '#dc2626' }}>
-                    {s.coverageRate}%
-                  </span>
+                ))}
+                <div className="flex items-center gap-4 pt-2 border-t border-sky-50 mt-2">
+                  {[{color:'#10b981',label:'≥70% Good'},{color:'#f59e0b',label:'50-69% Fair'},{color:'#ef4444',label:'<50% Gap'}].map(l => (
+                    <div key={l.label} className="flex items-center gap-1.5">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ background:l.color }} />
+                      <span className="text-xs text-sky-400">{l.label}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              <div className="flex items-center gap-4 pt-2 border-t border-sky-50 mt-3">
-                {[{ color: '#10b981', label: '≥70% Good' }, { color: '#f59e0b', label: '50-69% Fair' }, { color: '#ef4444', label: '<50% Gap' }].map(l => (
-                  <div key={l.label} className="flex items-center gap-1.5">
-                    <div className="w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />
-                    <span className="text-xs text-sky-500">{l.label}</span>
+              </div>
+            )}
+          </div>
+
+          {/* AI Recommendations */}
+          <div>
+            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-4">Recommended Actions</p>
+            {marketRecs.length === 0 && hiringRecs.length === 0 ? (
+              <p className="text-sky-300 text-sm py-6 text-center">Run screenings to generate recommendations.</p>
+            ) : (
+              <div className="space-y-3">
+                {[...hiringRecs, ...marketRecs].slice(0, 5).map((r: string, i: number) => (
+                  <div key={i} className="flex items-start gap-3 bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                    <div className="w-5 h-5 rounded-full bg-indigo-200 text-indigo-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0 mt-0.5">{i+1}</div>
+                    <p className="text-indigo-800 text-xs leading-relaxed">{r}</p>
                   </div>
                 ))}
               </div>
-            </div>
-          ) : (
-            <p className="text-sky-300 text-sm text-center py-8">Run screenings to see skills data.</p>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Detailed skill gap insights from AI */}
+        {skillGapInsights.length > 0 && (
+          <div className="px-5 pb-5">
+            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">Detailed Gap Analysis</p>
+            <div className="grid md:grid-cols-2 gap-3">
+              {skillGapInsights.slice(0, 6).map((g: any, i: number) => (
+                <div key={i} className={`rounded-xl p-4 border ${
+                  g.severity==='critical'?'bg-red-50 border-red-200':
+                  g.severity==='moderate'?'bg-amber-50 border-amber-200':
+                  'bg-sky-50 border-sky-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="font-semibold text-sky-900 text-sm">{g.skill}</p>
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize ${
+                      g.severity==='critical'?'bg-red-100 text-red-600':
+                      g.severity==='moderate'?'bg-amber-100 text-amber-700':
+                      'bg-sky-100 text-sky-600'
+                    }`}>{g.severity}</span>
+                  </div>
+                  <div className="h-1.5 bg-white/60 rounded-full overflow-hidden mb-2">
+                    <div className="h-full rounded-full" style={{ width:`${g.coverage}%`, background:g.severity==='critical'?'#ef4444':g.severity==='moderate'?'#f59e0b':'#0ea5e9' }} />
+                  </div>
+                  <p className="text-sky-600 text-xs leading-relaxed flex items-start gap-1.5">
+                    <Lightbulb className="w-3 h-3 flex-shrink-0 mt-0.5 text-sky-400" />{g.recommendation}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {/* ── Trending in Skills (score distribution) ── */}
+      <Section title="Trending in Skills — Score Distribution" icon={TrendingUp} defaultOpen={false}>
+        {/* Same filter bar */}
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-50 flex-wrap bg-sky-50/40">
+          <Filter className="w-3.5 h-3.5 text-sky-400" />
+          <select value={aJobFilter} onChange={e => setAJobFilter(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white min-w-[160px]">
+            <option value="all">All Jobs</option>
+            {jobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
+          </select>
+          <select value={aDeptFilter} onChange={e => setADeptFilter(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
+            <option value="all">All Departments</option>
+            {uniqueDepts.map(d => <option key={d} value={d}>{d}</option>)}
+          </select>
+          <select value={aDays} onChange={e => setADays(e.target.value)}
+            className="text-xs border border-sky-200 rounded-lg px-3 py-1.5 text-sky-700 outline-none bg-white">
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+            <option value="">All time</option>
+          </select>
+          <button onClick={loadAnalytics} className="text-xs bg-sky-600 text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-sky-700 transition-colors">Apply</button>
+        </div>
+        <div className="p-5 grid lg:grid-cols-2 gap-6">
+          <div>
+            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">Candidate Score Buckets</p>
+            {scoreDistribution.some((b: any) => b.count > 0) ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={scoreDistribution} margin={{ top:4, right:4, left:-24, bottom:0 }}>
+                  <XAxis dataKey="label" tick={{ fontSize:10, fill:'#7dd3fc' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize:10, fill:'#bae6fd' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<ChartTip />} />
+                  <Bar dataKey="count" name="Candidates" radius={[4,4,0,0]}>
+                    {scoreDistribution.map((_: any, i: number) => <Cell key={i} fill={SCORE_COLORS[i % SCORE_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-48 flex items-center justify-center">
+                <p className="text-sky-300 text-sm">Run screenings to see distribution.</p>
+              </div>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">Applicant Trend</p>
+            <ResponsiveContainer width="100%" height={200}>
+              <AreaChart data={trendData.length ? trendData : aiActivity} margin={{ top:4, right:4, left:-24, bottom:0 }}>
+                <defs>
+                  <linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.25} />
+                    <stop offset="95%" stopColor="#38bdf8" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <XAxis dataKey="label" tick={{ fontSize:10, fill:'#7dd3fc' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize:10, fill:'#bae6fd' }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTip />} />
+                <Area type="monotone" dataKey="count" name="Applicants" stroke="#0ea5e9" strokeWidth={2.5} fill="url(#skyG)" dot={false} activeDot={{ r:4 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </Section>
 
       {/* ── Top Candidates ── */}
       {topCandidates.length > 0 && (
-        <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-          <div className="flex items-center justify-between px-6 py-4 border-b border-sky-50">
-            <div className="flex items-center gap-2">
-              <Trophy className="w-4 h-4 text-amber-500" />
-              <h2 className="font-display font-bold text-sky-900">Top Candidates Across All Screenings</h2>
-            </div>
-            <Link href="/hr/shortlist" className="text-sky-500 text-xs font-semibold hover:text-sky-700 flex items-center gap-1">View all shortlists <ArrowRight className="w-3 h-3" /></Link>
-          </div>
+        <Section title="Top Candidates Across All Screenings" icon={Trophy} badge={topCandidates.length} defaultOpen={false}>
           <div className="divide-y divide-sky-50">
-            {topCandidates.slice(0, 5).map((c: any, i: number) => (
+            {topCandidates.slice(0,5).map((c: any, i: number) => (
               <div key={i} onClick={() => setSelectedCandidate(c)}
                 className="flex items-center gap-4 px-6 py-3.5 hover:bg-sky-50 transition-colors cursor-pointer group">
-                <div className="w-7 h-7 rounded-full bg-sky-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-sky-600 text-xs font-bold">#{i + 1}</span>
-                </div>
-                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                <span className="w-6 h-6 rounded-full bg-sky-100 text-sky-600 text-xs font-bold flex items-center justify-center flex-shrink-0">#{i+1}</span>
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white font-bold text-sm flex items-center justify-center flex-shrink-0">
                   {c.firstName?.[0]}{c.lastName?.[0]}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-sky-900 text-sm">{c.firstName} {c.lastName}</p>
-                  <p className="text-sky-400 text-xs truncate">{c.headline || c.location || '—'}</p>
+                  <p className="text-sky-400 text-xs truncate">{c.headline||c.location||'—'}</p>
                 </div>
-                <ScoreRing score={c.matchScore || 0} size={44} />
+                <ScoreRing score={c.matchScore||0} size={40} />
                 <Eye className="w-4 h-4 text-sky-300 group-hover:text-sky-600 transition-colors flex-shrink-0" />
               </div>
             ))}
           </div>
-        </div>
+          <div className="px-6 py-3 border-t border-sky-50 bg-sky-50/30">
+            <Link href="/hr/shortlist" className="text-xs text-sky-600 font-semibold hover:underline flex items-center gap-1">
+              View full shortlists <ArrowRight className="w-3 h-3" />
+            </Link>
+          </div>
+        </Section>
       )}
 
-      {/* ── Hiring Pipeline Kanban (per-job) ── */}
-      <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-sky-50 flex-wrap gap-3">
-          <div className="flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-sky-500" />
-            <h2 className="font-display font-bold text-sky-900">Hiring Pipeline by Job</h2>
-          </div>
-          <div className="flex items-center gap-3">
-            <Filter className="w-4 h-4 text-sky-400" />
-            <select value={pipelineJob} onChange={e => setPipelineJob(e.target.value)}
-              className="bg-white border border-sky-200 rounded-xl px-3 h-9 text-sm text-sky-700 outline-none min-w-[200px]">
-              <option value="">Select a job to view pipeline…</option>
-              {jobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
-            </select>
-          </div>
+      {/* ── Pipeline by Job (collapsed by default) ── */}
+      <Section title="Hiring Pipeline by Job" icon={GitBranch} defaultOpen={false}>
+        <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-50 bg-sky-50/40">
+          <Filter className="w-3.5 h-3.5 text-sky-400" />
+          <select value={pipelineJob} onChange={e => setPipelineJob(e.target.value)}
+            className="text-sm border border-sky-200 rounded-xl px-3 py-1.5 text-sky-700 outline-none bg-white flex-1 max-w-xs">
+            <option value="">Select a job…</option>
+            {jobs.map(j => <option key={j._id} value={j._id}>{j.title}</option>)}
+          </select>
         </div>
-
         {!pipelineJob ? (
-          <div className="p-12 text-center">
-            <GitBranch className="w-10 h-10 text-sky-200 mx-auto mb-3" />
-            <p className="text-sky-400 text-sm">Select a job above to see candidate flow through each stage.</p>
-          </div>
+          <div className="p-10 text-center"><p className="text-sky-400 text-sm">Select a job to see candidate pipeline.</p></div>
         ) : pipelineLoading ? (
-          <div className="p-8 flex justify-center">
-            <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
-          </div>
+          <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" /></div>
         ) : pipelineData ? (
           <div className="flex gap-4 overflow-x-auto p-5">
             {kanbanCols.map(col => {
-              const colData = pipelineData[col.key] || { candidates: [], count: 0 }
+              const colData = pipelineData[col.key] || { candidates:[], count:0 }
               return (
-                <div key={col.key} className="min-w-[200px] flex-shrink-0">
+                <div key={col.key} className="min-w-[190px] flex-shrink-0">
                   <div className={`flex items-center justify-between px-4 py-2.5 rounded-t-xl ${col.color} border-b-2 ${col.border}`}>
                     <span className="text-xs font-bold uppercase tracking-wide">{col.label}</span>
                     <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center text-xs font-bold">{colData.count}</span>
                   </div>
-                  <div className="bg-sky-50/40 rounded-b-xl p-2 space-y-2 min-h-[140px]">
+                  <div className="bg-sky-50/40 rounded-b-xl p-2 space-y-2 min-h-[120px]">
                     {colData.candidates.map((c: any, i: number) => {
                       const p = c.talentProfile || c
                       return (
-                        <div key={i} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 ${col.border} hover:shadow-card transition-all`}>
+                        <div key={i} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 ${col.border}`}>
                           <p className="font-semibold text-sky-900 text-sm">{p.firstName} {p.lastName}</p>
-                          <p className="text-sky-400 text-xs mt-0.5">{p.location || c.location || '—'}</p>
-                          {c.aiScore != null && (
+                          {c.aiScore!=null && (
                             <div className="mt-1.5 flex items-center gap-1.5">
                               <div className="flex-1 h-1.5 bg-sky-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-sky-400 rounded-full" style={{ width: `${c.aiScore}%` }} />
+                                <div className="h-full bg-sky-400 rounded-full" style={{ width:`${c.aiScore}%` }} />
                               </div>
                               <span className="text-sky-500 text-xs font-bold">{c.aiScore}</span>
                             </div>
@@ -640,9 +698,7 @@ export default function HRDashboardPage() {
                       )
                     })}
                     {colData.count > colData.candidates.length && (
-                      <div className="bg-white/60 rounded-xl p-2 text-center">
-                        <p className="text-sky-400 text-xs">+{colData.count - colData.candidates.length} more</p>
-                      </div>
+                      <p className="text-sky-400 text-xs text-center py-1">+{colData.count - colData.candidates.length} more</p>
                     )}
                   </div>
                 </div>
@@ -650,133 +706,120 @@ export default function HRDashboardPage() {
             })}
           </div>
         ) : (
-          <div className="p-12 text-center">
-            <p className="text-sky-400 text-sm">No pipeline data for this job yet.</p>
-          </div>
+          <div className="p-10 text-center"><p className="text-sky-400 text-sm">No pipeline data yet.</p></div>
         )}
-      </div>
+      </Section>
 
-      {/* ── Recent Screenings ── */}
-      <div className="bg-white rounded-2xl border border-sky-100 overflow-hidden" style={{ boxShadow: '0 1px 6px rgba(14,165,233,0.08)' }}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-sky-50">
-          <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-sky-500" /><h2 className="font-display font-bold text-sky-900">Recent Screenings</h2></div>
-          <Link href="/hr/screening" className="text-sky-500 text-xs font-semibold hover:text-sky-700 flex items-center gap-1">View all <ArrowRight className="w-3 h-3" /></Link>
-        </div>
+      {/* ── Recent Screenings (collapsed) ── */}
+      <Section title="Recent Screenings" icon={FileText} badge={recentScreenings.length} defaultOpen={false}>
         {recentScreenings.length === 0 ? (
-          <div className="p-10 text-center">
-            <CheckCircle className="w-8 h-8 text-sky-200 mx-auto mb-3" />
-            <p className="text-sky-400 text-sm mb-3">No screenings run yet.</p>
-            <Link href="/hr/screening" className="inline-flex items-center gap-1.5 bg-sky-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-sky-700 transition-colors"><Zap className="w-4 h-4" /> Run first screening</Link>
+          <div className="p-8 text-center">
+            <p className="text-sky-400 text-sm mb-3">No screenings yet.</p>
+            <Link href="/hr/screening" className="inline-flex items-center gap-1.5 bg-sky-600 text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-sky-700"><Zap className="w-4 h-4" /> Run first screening</Link>
           </div>
         ) : (
-          <div className="divide-y divide-sky-50">
-            {recentScreenings.map((s: any, i: number) => (
-              <div key={i} className="flex items-center gap-4 px-6 py-3.5 hover:bg-sky-50 transition-colors">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle className="w-4 h-4 text-white" />
+          <>
+            <div className="divide-y divide-sky-50">
+              {recentScreenings.map((s: any, i: number) => (
+                <div key={i} className="flex items-center gap-4 px-6 py-3.5 hover:bg-sky-50 transition-colors">
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle className="w-4 h-4 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-sky-900 truncate">{s.jobTitle}</p>
+                    <p className="text-xs text-sky-400">{s.totalApplicantsEvaluated} evaluated · {s.shortlist?.length||0} shortlisted</p>
+                  </div>
+                  <Link href="/hr/shortlist"><Eye className="w-4 h-4 text-sky-300 hover:text-sky-600 transition-colors" /></Link>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-sky-900 truncate">{s.jobTitle}</p>
-                  <p className="text-xs text-sky-400">{s.totalApplicantsEvaluated} evaluated · {s.shortlist?.length || 0} shortlisted</p>
-                </div>
-                <Link href="/hr/shortlist" className="flex-shrink-0"><Eye className="w-4 h-4 text-sky-300 hover:text-sky-600 transition-colors" /></Link>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+            <div className="px-6 py-3 border-t border-sky-50 bg-sky-50/30 flex gap-4">
+              {[
+                { href:'/hr/screening', icon:Zap,      label:'Run Screening' },
+                { href:'/hr/shortlist', icon:Star,     label:'View Shortlists' },
+              ].map(a => (
+                <Link key={a.href} href={a.href} className="flex items-center gap-1.5 text-xs text-sky-600 font-semibold hover:text-sky-800">
+                  <a.icon className="w-3.5 h-3.5" />{a.label}
+                </Link>
+              ))}
+            </div>
+          </>
         )}
-        {/* Quick actions */}
-        <div className="px-6 py-4 border-t border-sky-50 bg-sky-50/40">
-          <p className="text-sky-400 text-xs font-semibold uppercase tracking-wide mb-3">Quick Actions</p>
-          <div className="grid grid-cols-3 gap-2">
-            {[
-              { href: '/hr/screening', icon: Zap,      label: 'Run Screening' },
-              { href: '/hr/shortlist', icon: Star,     label: 'View Shortlists' },
-              { href: '/hr/analytics', icon: BarChart2,label: 'Full Analytics' },
-            ].map(a => (
-              <Link key={a.href} href={a.href} className="flex flex-col items-center gap-1.5 bg-white border border-sky-200 rounded-xl py-3 hover:border-sky-400 hover:shadow-sm transition-all group">
-                <a.icon className="w-4 h-4 text-sky-500 group-hover:text-sky-700" />
-                <span className="text-xs font-semibold text-sky-700">{a.label}</span>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
+      </Section>
 
-      {/* ── Summary Bar ── */}
+      {/* ── Summary bar ── */}
       <div className="bg-sky-950 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-6">
           {[
-            { label: 'Total Pipeline',  value: stats.totalApplicants || 0, color: 'text-white' },
-            { label: 'Open Roles',      value: stats.activeJobs      || 0, color: 'text-white' },
-            { label: 'Shortlisted',     value: stats.shortlisted     || 0, color: 'text-white' },
-            { label: 'Avg Score',       value: summary.avgScore      || 0, color: 'text-sky-300' },
-            { label: 'Conversion Rate', value: `${stats.shortlistRate || 0}%`, color: 'text-emerald-400' },
+            { label:'Total Pipeline',  value:stats.totalApplicants||0, color:'text-white' },
+            { label:'Open Roles',      value:stats.activeJobs||0,      color:'text-white' },
+            { label:'Shortlisted',     value:stats.shortlisted||0,     color:'text-white' },
+            { label:'Avg Score',       value:summary.avgScore||0,      color:'text-sky-300' },
+            { label:'Conversion',      value:`${stats.shortlistRate||0}%`, color:'text-emerald-400' },
           ].map((s, i, arr) => (
             <div key={s.label} className="flex items-center gap-6">
               <div className="text-center">
                 <p className={`font-display font-bold text-xl ${s.color}`}>{s.value}</p>
                 <p className="text-sky-400 text-xs">{s.label}</p>
               </div>
-              {i < arr.length - 1 && <div className="w-px h-8 bg-sky-800" />}
+              {i < arr.length-1 && <div className="w-px h-8 bg-sky-800" />}
             </div>
           ))}
         </div>
         <div className="flex items-center gap-2 text-sky-400 text-xs">
-          <Calendar className="w-3.5 h-3.5" />
-          <span>Updated: {now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+          <Clock className="w-3.5 h-3.5" />
+          <span>Updated: {now.toLocaleTimeString('en-US',{ hour:'2-digit', minute:'2-digit' })}</span>
         </div>
       </div>
 
-      {/* ── Candidate Detail Modal ── */}
+      {/* ── Candidate modal ── */}
       {selectedCandidate && (
         <div className="fixed inset-0 bg-sky-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-xl">
-            <div className="sticky top-0 bg-white border-b border-sky-100 px-8 py-5 flex items-center justify-between rounded-t-3xl">
+          <div className="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="sticky top-0 bg-white border-b border-sky-100 px-8 py-5 flex items-center justify-between rounded-t-3xl z-10">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white font-bold text-lg flex items-center justify-center">
+                <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-500 text-white font-bold text-lg flex items-center justify-center">
                   {selectedCandidate.firstName?.[0]}{selectedCandidate.lastName?.[0]}
                 </div>
                 <div>
-                  <h2 className="font-display text-xl font-bold text-sky-900">{selectedCandidate.firstName} {selectedCandidate.lastName}</h2>
-                  <p className="text-sky-400 text-sm">Score {selectedCandidate.matchScore}/100 · {selectedCandidate.location || '—'}</p>
+                  <h2 className="font-display text-lg font-bold text-sky-900">{selectedCandidate.firstName} {selectedCandidate.lastName}</h2>
+                  <p className="text-sky-400 text-sm">Score {selectedCandidate.matchScore}/100</p>
                 </div>
               </div>
               <button onClick={() => setSelectedCandidate(null)} className="text-sky-400 hover:text-sky-700 w-8 h-8 flex items-center justify-center rounded-xl hover:bg-sky-50"><X className="w-5 h-5" /></button>
             </div>
-            <div className="p-8 space-y-6">
-              {selectedCandidate.scoreBreakdown && Object.keys(selectedCandidate.scoreBreakdown).length > 0 && (
+            <div className="p-8 space-y-5">
+              {selectedCandidate.scoreBreakdown && (
                 <div>
-                  <h3 className="font-display font-bold text-sky-900 mb-4">Score Breakdown</h3>
-                  <div className="space-y-3">
-                    {Object.entries(selectedCandidate.scoreBreakdown).map(([k, v]: any) => (
-                      <div key={k} className="flex items-center gap-3">
-                        <span className="text-sky-600 text-sm capitalize w-40 flex-shrink-0">{k.replace(/([A-Z])/g, ' $1')}</span>
-                        <div className="flex-1 h-2 bg-sky-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-sky-400 rounded-full" style={{ width: `${v}%` }} />
-                        </div>
-                        <span className="font-bold text-sky-700 text-sm w-10 text-right tabular-nums">{v}</span>
+                  <h3 className="font-display font-bold text-sky-900 mb-3">Score Breakdown</h3>
+                  {Object.entries(selectedCandidate.scoreBreakdown).map(([k,v]: any) => (
+                    <div key={k} className="flex items-center gap-3 mb-2">
+                      <span className="text-sky-600 text-sm capitalize w-36 flex-shrink-0">{k.replace(/([A-Z])/g,' $1')}</span>
+                      <div className="flex-1 h-2 bg-sky-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-sky-400 rounded-full" style={{ width:`${v}%` }} />
                       </div>
-                    ))}
-                  </div>
+                      <span className="font-bold text-sky-700 text-sm w-8 text-right">{v}</span>
+                    </div>
+                  ))}
                 </div>
               )}
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                  <p className="text-emerald-600 text-xs font-bold uppercase tracking-wide mb-3">Strengths</p>
-                  <ul className="space-y-2">{(selectedCandidate.strengths || []).map((s: string, i: number) => <li key={i} className="text-emerald-800 text-xs flex gap-2"><span>✓</span>{s}</li>)}</ul>
+                  <p className="text-emerald-600 text-xs font-bold uppercase tracking-wide mb-2">Strengths</p>
+                  <ul className="space-y-1">{(selectedCandidate.strengths||[]).map((s:string,i:number)=><li key={i} className="text-emerald-800 text-xs flex gap-2"><span>✓</span>{s}</li>)}</ul>
                 </div>
                 <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                  <p className="text-amber-600 text-xs font-bold uppercase tracking-wide mb-3">Areas to Watch</p>
-                  <ul className="space-y-2">{(selectedCandidate.gaps || []).map((g: string, i: number) => <li key={i} className="text-amber-800 text-xs flex gap-2"><span>⚠</span>{g}</li>)}</ul>
+                  <p className="text-amber-600 text-xs font-bold uppercase tracking-wide mb-2">Areas to Watch</p>
+                  <ul className="space-y-1">{(selectedCandidate.gaps||[]).map((g:string,i:number)=><li key={i} className="text-amber-800 text-xs flex gap-2"><span>⚠</span>{g}</li>)}</ul>
                 </div>
               </div>
               {selectedCandidate.recommendation && (
-                <div className="bg-sky-50 border-l-4 border-sky-500 rounded-r-2xl p-5">
-                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-2">Recommendation</p>
+                <div className="bg-sky-50 border-l-4 border-sky-500 rounded-r-2xl p-4">
+                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-1">Recommendation</p>
                   <p className="text-sky-800 text-sm leading-relaxed">{selectedCandidate.recommendation}</p>
                 </div>
               )}
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-1">
                 <button onClick={() => setSelectedCandidate(null)} className="flex-1 bg-sky-600 hover:bg-sky-700 text-white font-semibold px-4 py-2.5 rounded-xl transition-colors">✓ Move to Interview</button>
                 <button onClick={() => setSelectedCandidate(null)} className="flex-1 bg-red-50 text-red-500 font-semibold px-4 py-2.5 rounded-xl hover:bg-red-100 transition-colors">✗ Not Selected</button>
               </div>
@@ -785,8 +828,7 @@ export default function HRDashboardPage() {
         </div>
       )}
 
-      {/* Click outside to close export menu */}
-      {showExportMenu && <div className="fixed inset-0 z-20" onClick={() => setShowExportMenu(false)} />}
+      {showExport && <div className="fixed inset-0 z-20" onClick={() => setShowExport(false)} />}
     </div>
   )
 }
