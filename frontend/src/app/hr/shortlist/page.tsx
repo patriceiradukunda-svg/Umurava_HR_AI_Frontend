@@ -1,108 +1,265 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { screeningAPI, jobsAPI } from '@/lib/api'
+import { useEffect, useState, useCallback } from 'react'
+import { screeningAPI, jobsAPI, applicantsAPI } from '@/lib/api'
 import {
-  Star, Trophy, X, ChevronRight, CheckCircle, AlertTriangle,
-  TrendingUp, TrendingDown, BookOpen, Users, BarChart2,
-  Award, Target, Lightbulb, Filter, Download, Eye,
-  ArrowUpRight, Minus,
+  Trophy, Download, Filter, Mail, CheckCircle, XCircle,
+  ChevronUp, ChevronDown, Eye, X, Send, Briefcase,
+  AlertTriangle, Star, Users, Award, RefreshCw,
+  FileText, UserCheck, Clock, ChevronRight,
 } from 'lucide-react'
 import Link from 'next/link'
+import toast from 'react-hot-toast'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type SortKey = 'rank' | 'name' | 'matchScore' | 'skillsMatch' | 'experienceMatch' | 'location'
+type SortDir = 'asc' | 'desc'
+type EmailType = 'shortlisted' | 'interview' | 'written_test' | 'hired' | 'rejected'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function scoreColor(s: number) {
-  if (s >= 80) return { text: 'text-emerald-600', bg: 'bg-emerald-50', bar: '#10b981', ring: '#10b981', border: 'border-emerald-200' }
-  if (s >= 60) return { text: 'text-sky-600',     bg: 'bg-sky-50',     bar: '#0ea5e9', ring: '#0ea5e9', border: 'border-sky-200'    }
-  if (s >= 40) return { text: 'text-amber-600',   bg: 'bg-amber-50',   bar: '#f59e0b', ring: '#f59e0b', border: 'border-amber-200'  }
-  return             { text: 'text-red-500',       bg: 'bg-red-50',     bar: '#ef4444', ring: '#ef4444', border: 'border-red-200'    }
+  if (s >= 80) return '#10b981'
+  if (s >= 60) return '#0ea5e9'
+  if (s >= 40) return '#f59e0b'
+  return '#ef4444'
 }
 
-function ScoreRing({ score, size = 56 }: { score: number; size?: number }) {
-  const r = size * 0.38
-  const c = 2 * Math.PI * r
-  const col = scoreColor(score)
+function ScorePill({ score }: { score: number }) {
+  const color = scoreColor(score)
   return (
-    <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }} viewBox={`0 0 ${size} ${size}`}>
-        <circle cx={size/2} cy={size/2} r={r} strokeWidth={4} className="stroke-sky-100 fill-none" />
-        <circle cx={size/2} cy={size/2} r={r} strokeWidth={4} fill="none"
-          stroke={col.ring} strokeLinecap="round"
-          strokeDasharray={`${(score/100)*c} ${c}`} />
-      </svg>
-      <span className={`absolute inset-0 flex items-center justify-center font-display font-bold ${col.text}`}
-        style={{ fontSize: size * 0.22 }}>{score}</span>
+    <span className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
+      style={{ background: color + '18', color }}>
+      {score}
+    </span>
+  )
+}
+
+function MiniBar({ value, color }: { value: number; color: string }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="w-16 h-1.5 bg-sky-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
+      </div>
+      <span className="text-xs font-semibold text-sky-600 w-7">{value}</span>
     </div>
   )
 }
 
 function exportCSV(rows: any[], filename: string) {
   if (!rows.length) return
-  const h   = Object.keys(rows[0])
+  const h = Object.keys(rows[0])
   const csv = [h.join(','), ...rows.map(r => h.map(k => JSON.stringify(r[k] ?? '')).join(','))].join('\n')
-  const a   = document.createElement('a')
-  a.href    = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-  a.download = filename
-  a.click()
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+  a.download = filename; a.click()
 }
 
-const rankStyle = (rank: number) => {
-  if (rank === 1) return 'bg-amber-100  border-amber-300  text-amber-700'
-  if (rank === 2) return 'bg-slate-100  border-slate-300  text-slate-600'
-  if (rank === 3) return 'bg-orange-100 border-orange-300 text-orange-600'
-  return 'bg-sky-50 border-sky-200 text-sky-600'
+const EMAIL_TEMPLATES: Record<EmailType, { label: string; icon: any; color: string; subject: string; body: (name: string, job: string) => string }> = {
+  shortlisted: {
+    label: 'Shortlisted', icon: Star, color: 'text-emerald-600',
+    subject: 'Congratulations — You\'ve Been Shortlisted!',
+    body: (name, job) => `Dear ${name},\n\nCongratulations! We are pleased to inform you that you have been shortlisted for the position of ${job}.\n\nOur team was impressed with your profile and we would like to move forward with your application.\n\nWe will be in touch shortly with next steps.\n\nBest regards,\nHR Team`,
+  },
+  interview: {
+    label: 'Interview Invite', icon: UserCheck, color: 'text-sky-600',
+    subject: 'Interview Invitation — Next Step in Your Application',
+    body: (name, job) => `Dear ${name},\n\nWe are pleased to invite you for an interview for the position of ${job}.\n\nPlease reply to this email to confirm your availability and we will schedule a suitable time.\n\nBest regards,\nHR Team`,
+  },
+  written_test: {
+    label: 'Written Test', icon: FileText, color: 'text-indigo-600',
+    subject: 'Written Assessment Invitation',
+    body: (name, job) => `Dear ${name},\n\nAs part of the selection process for ${job}, we would like to invite you to complete a written assessment.\n\nDetails and instructions will be sent to you shortly.\n\nBest regards,\nHR Team`,
+  },
+  hired: {
+    label: 'Offer / Hired', icon: Award, color: 'text-amber-600',
+    subject: 'Job Offer — Congratulations!',
+    body: (name, job) => `Dear ${name},\n\nWe are delighted to offer you the position of ${job}.\n\nPlease find the formal offer letter attached. Kindly review and confirm your acceptance by responding to this email.\n\nWelcome to the team!\n\nBest regards,\nHR Team`,
+  },
+  rejected: {
+    label: 'Not Selected', icon: XCircle, color: 'text-slate-500',
+    subject: 'Update on Your Application',
+    body: (name, job) => `Dear ${name},\n\nThank you for your interest in the ${job} position and for the time you invested in our selection process.\n\nAfter careful consideration, we regret to inform you that we will not be moving forward with your application at this time.\n\nWe appreciate your effort and encourage you to apply for future opportunities.\n\nBest regards,\nHR Team`,
+  },
 }
 
-// ─── Shared card style ────────────────────────────────────────────────────────
-const card = 'bg-white rounded-2xl border-2 border-sky-100 shadow-[0_2px_16px_rgba(14,165,233,0.08)]'
-
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function HRShortlistPage() {
   const [jobs,        setJobs]        = useState<any[]>([])
   const [selectedJob, setSelectedJob] = useState('')
   const [result,      setResult]      = useState<any>(null)
-  const [selected,    setSelected]    = useState<any>(null)
   const [loading,     setLoading]     = useState(false)
-  const [tab,         setTab]         = useState<'shortlisted' | 'all' | 'insights'>('shortlisted')
-  const [showExport,  setShowExport]  = useState(false)
+  const [autoLoading, setAutoLoading] = useState(true)
 
+  // Filters & sort
+  const [statusFilter, setStatusFilter] = useState<'all' | 'shortlisted' | 'not_shortlisted'>('all')
+  const [minScore,     setMinScore]     = useState(0)
+  const [sortKey,      setSortKey]      = useState<SortKey>('rank')
+  const [sortDir,      setSortDir]      = useState<SortDir>('asc')
+  const [search,       setSearch]       = useState('')
+
+  // Detail modal
+  const [detailCand, setDetailCand] = useState<any>(null)
+
+  // Email modal
+  const [emailCand,    setEmailCand]    = useState<any>(null)
+  const [emailType,    setEmailType]    = useState<EmailType>('shortlisted')
+  const [emailBody,    setEmailBody]    = useState('')
+  const [emailSubject, setEmailSubject] = useState('')
+  const [sending,      setSending]      = useState(false)
+  const [sentEmails,   setSentEmails]   = useState<Record<string, EmailType[]>>({}) // applicantId → sent types
+
+  // Fetch jobs and auto-select the one with most recent screening
   useEffect(() => {
-    jobsAPI.list().then(r => setJobs(r.data.data || [])).catch(() => {})
+    jobsAPI.list().then(async r => {
+      const allJobs = r.data.data || []
+      setJobs(allJobs)
+      // Try to find the most recently screened job
+      try {
+        const screenings = await screeningAPI.list({ status: 'completed' })
+        const latest = (screenings.data.data || [])[0]
+        if (latest?.jobId) {
+          const jobId = typeof latest.jobId === 'object' ? latest.jobId._id : latest.jobId
+          setSelectedJob(jobId)
+        } else if (allJobs.length > 0) {
+          setSelectedJob(allJobs[0]._id)
+        }
+      } catch {
+        if (allJobs.length > 0) setSelectedJob(allJobs[0]._id)
+      }
+      setAutoLoading(false)
+    }).catch(() => setAutoLoading(false))
   }, [])
 
+  // Load screening result when job changes
   useEffect(() => {
     if (!selectedJob) return
     setLoading(true)
+    setResult(null)
     screeningAPI.latest(selectedJob)
       .then(r => setResult(r.data.data))
       .catch(() => setResult(null))
       .finally(() => setLoading(false))
   }, [selectedJob])
 
-  const shortlist     = result?.shortlist      || []
-  const allCandidates = result?.allCandidates  || []
-  const insights      = result?.insights       || null
-  const displayList   = tab === 'all' ? allCandidates : shortlist
+  const allCandidates: any[] = result?.allCandidates?.length
+    ? result.allCandidates
+    : result?.shortlist || []
 
-  const handleExport = () => {
-    const rows = displayList.map((c: any) => ({
-      Rank:                c.rank || '—',
-      Name:                `${c.firstName} ${c.lastName}`,
-      Email:               c.email,
-      Location:            c.location,
-      Score:               c.matchScore,
-      'Skills Match':      c.scoreBreakdown?.skillsMatch,
-      'Experience Match':  c.scoreBreakdown?.experienceMatch,
-      'Education Match':   c.scoreBreakdown?.educationMatch,
-      'Project Relevance': c.scoreBreakdown?.projectRelevance,
-      Shortlisted:         c.isShortlisted ? 'Yes' : 'No',
-      Recommendation:      c.recommendation,
-    }))
-    exportCSV(rows, `shortlist-${result?.jobTitle?.replace(/\s+/g,'-')}-${new Date().toISOString().split('T')[0]}.csv`)
-    setShowExport(false)
+  // Sort
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
+    else { setSortKey(key); setSortDir('asc') }
   }
 
+  // Filter + sort
+  const filtered = allCandidates
+    .filter(c => {
+      if (statusFilter === 'shortlisted'     && c.isShortlisted === false) return false
+      if (statusFilter === 'not_shortlisted' && c.isShortlisted !== false) return false
+      if (c.matchScore < minScore) return false
+      if (search) {
+        const q = search.toLowerCase()
+        if (!`${c.firstName} ${c.lastName} ${c.email} ${c.location}`.toLowerCase().includes(q)) return false
+      }
+      return true
+    })
+    .sort((a, b) => {
+      let va: any, vb: any
+      if (sortKey === 'rank')             { va = a.rank || 999;            vb = b.rank || 999 }
+      else if (sortKey === 'name')        { va = `${a.firstName}${a.lastName}`.toLowerCase(); vb = `${b.firstName}${b.lastName}`.toLowerCase() }
+      else if (sortKey === 'matchScore')  { va = a.matchScore;             vb = b.matchScore }
+      else if (sortKey === 'skillsMatch') { va = a.scoreBreakdown?.skillsMatch || 0; vb = b.scoreBreakdown?.skillsMatch || 0 }
+      else if (sortKey === 'experienceMatch') { va = a.scoreBreakdown?.experienceMatch || 0; vb = b.scoreBreakdown?.experienceMatch || 0 }
+      else if (sortKey === 'location')    { va = a.location || ''; vb = b.location || '' }
+      else { va = 0; vb = 0 }
+      return sortDir === 'asc' ? (va > vb ? 1 : -1) : (va < vb ? 1 : -1)
+    })
+
+  const shortlistedCount    = allCandidates.filter(c => c.isShortlisted !== false).length
+  const notShortlistedCount = allCandidates.filter(c => c.isShortlisted === false).length
+
+  // Open email modal
+  const openEmail = (c: any) => {
+    const defaultType: EmailType = c.isShortlisted !== false ? 'shortlisted' : 'rejected'
+    setEmailCand(c)
+    setEmailType(defaultType)
+    setEmailSubject(EMAIL_TEMPLATES[defaultType].subject)
+    setEmailBody(EMAIL_TEMPLATES[defaultType].body(`${c.firstName} ${c.lastName}`, result?.jobTitle || ''))
+  }
+
+  const changeEmailType = (type: EmailType) => {
+    if (!emailCand) return
+    setEmailType(type)
+    setEmailSubject(EMAIL_TEMPLATES[type].subject)
+    setEmailBody(EMAIL_TEMPLATES[type].body(`${emailCand.firstName} ${emailCand.lastName}`, result?.jobTitle || ''))
+  }
+
+  const sendEmail = async () => {
+    if (!emailCand) return
+    setSending(true)
+    try {
+      // Update applicant status based on email type
+      const statusMap: Record<EmailType, string> = {
+        shortlisted:  'shortlisted',
+        interview:    'shortlisted',
+        written_test: 'shortlisted',
+        hired:        'hired',
+        rejected:     'rejected',
+      }
+      await applicantsAPI.updateStatus(emailCand.applicantId || emailCand._id, statusMap[emailType])
+
+      // Track sent emails per candidate
+      setSentEmails(prev => ({
+        ...prev,
+        [emailCand.applicantId || emailCand._id]: [
+          ...(prev[emailCand.applicantId || emailCand._id] || []),
+          emailType,
+        ],
+      }))
+
+      toast.success(`${EMAIL_TEMPLATES[emailType].label} notification sent to ${emailCand.firstName}!`)
+      setEmailCand(null)
+    } catch {
+      toast.error('Failed to send. Please try again.')
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleExport = () => {
+    const rows = filtered.map(c => ({
+      Rank:                c.rank || '—',
+      Name:                `${c.firstName} ${c.lastName}`,
+      Email:               c.email || '—',
+      Location:            c.location || '—',
+      'Overall Score':     c.matchScore,
+      'Skills Match':      c.scoreBreakdown?.skillsMatch || '—',
+      'Experience Match':  c.scoreBreakdown?.experienceMatch || '—',
+      'Education Match':   c.scoreBreakdown?.educationMatch || '—',
+      'Project Relevance': c.scoreBreakdown?.projectRelevance || '—',
+      Shortlisted:         c.isShortlisted !== false ? 'Yes' : 'No',
+      Recommendation:      c.recommendation || '—',
+    }))
+    exportCSV(rows, `shortlist-${result?.jobTitle?.replace(/\s+/g, '-') || 'export'}-${new Date().toISOString().split('T')[0]}.csv`)
+  }
+
+  // Sort header cell
+  const SortTh = ({ label, colKey, className = '' }: { label: string; colKey: SortKey; className?: string }) => (
+    <th onClick={() => toggleSort(colKey)}
+      className={`px-4 py-3 text-left text-xs font-bold text-sky-500 uppercase tracking-wide
+                  cursor-pointer hover:text-sky-700 select-none whitespace-nowrap ${className}`}>
+      <span className="flex items-center gap-1">
+        {label}
+        {sortKey === colKey
+          ? sortDir === 'asc'
+            ? <ChevronUp className="w-3 h-3 text-sky-500" />
+            : <ChevronDown className="w-3 h-3 text-sky-500" />
+          : <ChevronDown className="w-3 h-3 text-sky-200" />}
+      </span>
+    </th>
+  )
+
   return (
-    <div className="space-y-6 max-w-7xl">
+    <div className="space-y-5 max-w-full">
 
       {/* ── Header ─────────────────────────────────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
@@ -110,597 +267,509 @@ export default function HRShortlistPage() {
           <h1 className="font-display text-xl sm:text-2xl font-bold text-sky-900">
             Shortlists & Results
           </h1>
-          <p className="text-sky-400 text-sm mt-1">
-            Ranked candidates with evaluation details and recommendations
+          <p className="text-sky-400 text-sm mt-0.5">
+            Ranked candidates — click a row to view details, use mail icon to notify
           </p>
         </div>
-        {result && (
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <button onClick={() => setShowExport(v => !v)}
-                className="flex items-center gap-2 border-2 border-sky-100 bg-white text-sky-600
-                           text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-sky-50 transition-colors min-h-[44px]">
-                <Download className="w-4 h-4" /> Export
-              </button>
-              {showExport && (
-                <>
-                  <div className="fixed inset-0 z-20" onClick={() => setShowExport(false)} />
-                  <div className="absolute right-0 top-full mt-2 bg-white border-2 border-sky-100 rounded-2xl shadow-xl z-30 w-48 py-2">
-                    <button onClick={handleExport}
-                      className="w-full text-left px-4 py-2.5 text-sm text-sky-700 hover:bg-sky-50 flex items-center gap-2 min-h-[44px]">
-                      <BarChart2 className="w-4 h-4 text-sky-400" /> Export CSV
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-            <Link href="/hr/screening"
-              className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white
-                         text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors min-h-[44px]">
-              Run New Screening
-            </Link>
-          </div>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {result && (
+            <button onClick={handleExport}
+              className="flex items-center gap-2 border-2 border-sky-100 bg-white text-sky-600
+                         text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-sky-50 transition-colors min-h-[44px]">
+              <Download className="w-4 h-4" /> Export CSV
+            </button>
+          )}
+          <Link href="/hr/screening"
+            className="flex items-center gap-2 bg-sky-500 hover:bg-sky-600 text-white
+                       text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors min-h-[44px]">
+            Run New Screening
+          </Link>
+        </div>
       </div>
 
-      {/* ── Job selector ───────────────────────────────────────────────────── */}
-      <div className={card + ' p-4'}>
+      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
+      <div className="bg-white rounded-2xl border-2 border-sky-100 p-4
+                      shadow-[0_2px_16px_rgba(14,165,233,0.08)]">
         <div className="flex items-center gap-3 flex-wrap">
           <Filter className="w-4 h-4 text-sky-400 flex-shrink-0" />
-          <select
-            value={selectedJob}
-            onChange={e => { setSelectedJob(e.target.value); setTab('shortlisted') }}
-            className="flex-1 min-w-[200px] bg-sky-50 border-2 border-sky-200 rounded-xl
-                       px-4 h-11 text-sm text-sky-700 outline-none focus:border-sky-400 transition-colors"
-          >
-            <option value="">Select a job to view its shortlist…</option>
+
+          {/* Job selector */}
+          <select value={selectedJob} onChange={e => setSelectedJob(e.target.value)}
+            className="border-2 border-sky-200 rounded-xl px-3 h-10 text-sm text-sky-700
+                       outline-none bg-sky-50 focus:border-sky-400 transition-colors min-w-[200px] flex-1">
+            <option value="">Select a job…</option>
             {jobs.map(j => (
               <option key={j._id} value={j._id}>{j.title} — {j.department}</option>
             ))}
           </select>
+
+          {/* Status filter */}
+          <div className="flex items-center gap-1 bg-sky-50 border-2 border-sky-100 rounded-xl p-1">
+            {([
+              { key: 'all',             label: `All (${allCandidates.length})`       },
+              { key: 'shortlisted',     label: `✓ Shortlisted (${shortlistedCount})` },
+              { key: 'not_shortlisted', label: `✗ Not (${notShortlistedCount})`      },
+            ] as const).map(opt => (
+              <button key={opt.key} onClick={() => setStatusFilter(opt.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap min-h-[36px] ${
+                  statusFilter === opt.key
+                    ? 'bg-white text-sky-700 shadow-sm'
+                    : 'text-sky-500 hover:text-sky-700'
+                }`}>
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Min score */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-sky-500 font-semibold whitespace-nowrap">Min score:</span>
+            <input type="range" min={0} max={100} step={5} value={minScore}
+              onChange={e => setMinScore(Number(e.target.value))}
+              className="w-20 accent-sky-500" />
+            <span className="text-xs font-bold text-sky-600 w-6">{minScore}</span>
+          </div>
+
+          {/* Search */}
+          <input type="text" placeholder="Search name, email…" value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="border-2 border-sky-200 rounded-xl px-3 h-10 text-sm text-sky-700
+                       outline-none bg-white focus:border-sky-400 transition-colors w-44
+                       placeholder-sky-300" />
+
+          {/* Clear filters */}
+          {(statusFilter !== 'all' || minScore > 0 || search) && (
+            <button onClick={() => { setStatusFilter('all'); setMinScore(0); setSearch('') }}
+              className="text-xs text-sky-500 hover:text-sky-700 font-semibold underline min-h-[44px] px-2">
+              Clear filters
+            </button>
+          )}
         </div>
       </div>
 
-      {/* ── Empty states ───────────────────────────────────────────────────── */}
-      {!selectedJob && (
-        <div className={card + ' p-16 text-center'}>
-          <div className="w-16 h-16 rounded-2xl bg-sky-100 flex items-center justify-center mx-auto mb-4">
-            <Star className="w-8 h-8 text-sky-400" />
-          </div>
-          <h3 className="font-display text-xl font-bold text-sky-900 mb-2">Select a job above</h3>
-          <p className="text-sky-400 text-sm">Choose a job to view its screened candidates and insights.</p>
+      {/* ── Loading / empty states ─────────────────────────────────────────── */}
+      {(loading || autoLoading) && (
+        <div className="bg-white rounded-2xl border-2 border-sky-100 p-16 text-center">
+          <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full
+                          animate-spin mx-auto mb-4" />
+          <p className="text-sky-400 text-sm">Loading latest screening results…</p>
         </div>
       )}
 
-      {selectedJob && loading && (
-        <div className="grid md:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl h-56 animate-pulse bg-sky-50 border-2 border-sky-100" />
-          ))}
+      {!loading && !autoLoading && !selectedJob && (
+        <div className="bg-white rounded-2xl border-2 border-sky-100 p-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-sky-100 flex items-center justify-center mx-auto mb-4">
+            <Trophy className="w-7 h-7 text-sky-400" />
+          </div>
+          <h3 className="font-display text-lg font-bold text-sky-900 mb-2">Select a job above</h3>
+          <p className="text-sky-400 text-sm">Choose a job position to view its screened candidates.</p>
         </div>
       )}
 
-      {selectedJob && !loading && !result && (
-        <div className={card + ' p-16 text-center'}>
-          <div className="w-16 h-16 rounded-2xl bg-sky-100 flex items-center justify-center mx-auto mb-4">
-            <Trophy className="w-8 h-8 text-sky-400" />
+      {!loading && !autoLoading && selectedJob && !result && (
+        <div className="bg-white rounded-2xl border-2 border-sky-100 p-16 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-sky-100 flex items-center justify-center mx-auto mb-4">
+            <AlertTriangle className="w-7 h-7 text-sky-400" />
           </div>
-          <h3 className="font-display text-xl font-bold text-sky-900 mb-2">No screening run yet</h3>
-          <p className="text-sky-400 mb-6 text-sm">Run a screening for this job to see ranked candidates.</p>
+          <h3 className="font-display text-lg font-bold text-sky-900 mb-2">No screening run yet</h3>
+          <p className="text-sky-400 text-sm mb-5">Run a screening for this job to see ranked candidates.</p>
           <Link href="/hr/screening"
             className="inline-flex items-center gap-2 bg-sky-500 text-white font-semibold
-                       px-5 py-2.5 rounded-xl hover:bg-sky-600 transition-colors min-h-[44px]">
+                       px-5 py-2.5 rounded-xl hover:bg-sky-600 transition-colors">
             Go to Screening
           </Link>
         </div>
       )}
 
-      {result && (
+      {/* ── Results ────────────────────────────────────────────────────────── */}
+      {!loading && !autoLoading && result && (
         <>
-          {/* ── Hero stats bar ──────────────────────────────────────────────── */}
-          <div className={card + ' p-5'}>
-            <div className="flex flex-wrap items-center gap-5">
-              {/* Left: job info */}
-              <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600
-                                flex items-center justify-center flex-shrink-0 shadow-sm">
-                  <Trophy className="w-6 h-6 text-white" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className="font-display text-lg font-bold text-sky-900 truncate">{result.jobTitle}</h2>
-                  <p className="text-sky-400 text-xs">Latest screening results</p>
-                </div>
-              </div>
-
-              {/* Right: stats */}
-              <div className="flex items-center gap-1 flex-wrap">
-                {[
-                  { label:'Evaluated',   value: result.totalApplicantsEvaluated,  accent:'bg-sky-100 text-sky-700'         },
-                  { label:'Shortlisted', value: shortlist.length,                  accent:'bg-emerald-100 text-emerald-700' },
-                  { label:'Top Score',   value: shortlist[0]?.matchScore || 0,     accent:'bg-amber-100 text-amber-700'     },
-                  { label:'Avg Score',   value: shortlist.length
-                      ? Math.round(shortlist.reduce((a: number, c: any) => a + c.matchScore, 0) / shortlist.length)
-                      : 0,                                                           accent:'bg-sky-100 text-sky-600'         },
-                ].map((s, i, arr) => (
-                  <div key={s.label} className="flex items-center gap-1">
-                    <div className={`text-center px-4 py-2 rounded-xl ${s.accent}`}>
-                      <div className="font-display text-2xl font-bold leading-tight">{s.value}</div>
-                      <div className="text-[10px] font-bold uppercase tracking-wide opacity-70">{s.label}</div>
-                    </div>
-                    {i < arr.length - 1 && <div className="w-px h-10 bg-sky-100 mx-1" />}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Tabs ────────────────────────────────────────────────────────── */}
-          <div className="flex items-center gap-1 bg-sky-50 border-2 border-sky-100 rounded-xl p-1 w-fit overflow-x-auto">
+          {/* Summary strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {[
-              { key:'shortlisted', label:`Shortlisted (${shortlist.length})`                                     },
-              { key:'all',         label:`All Evaluated (${allCandidates.length || result.totalApplicantsEvaluated})` },
-              { key:'insights',    label:`Insights${insights ? ' ✦' : ''}`                                        },
-            ].map(t => (
-              <button key={t.key} onClick={() => setTab(t.key as any)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all whitespace-nowrap min-h-[40px] ${
-                  tab === t.key
-                    ? 'bg-white text-sky-700 shadow-sm'
-                    : 'text-sky-500 hover:text-sky-700'
-                }`}>
-                {t.label}
-              </button>
+              { label:'Job',         value: result.jobTitle,                   icon: Briefcase,  color:'bg-sky-100 text-sky-700'          },
+              { label:'Evaluated',   value: result.totalApplicantsEvaluated,   icon: Users,      color:'bg-sky-100 text-sky-700'          },
+              { label:'Shortlisted', value: shortlistedCount,                  icon: CheckCircle,color:'bg-emerald-100 text-emerald-700'  },
+              { label:'Top Score',   value: result.shortlist?.[0]?.matchScore || '—', icon: Award, color:'bg-amber-100 text-amber-700'   },
+            ].map(s => (
+              <div key={s.label} className={`${s.color} rounded-xl p-3 flex items-center gap-3`}>
+                <s.icon className="w-5 h-5 flex-shrink-0 opacity-70" />
+                <div className="min-w-0">
+                  <p className="font-display font-bold text-base leading-tight truncate">{s.value}</p>
+                  <p className="text-[11px] font-semibold opacity-70 uppercase tracking-wide">{s.label}</p>
+                </div>
+              </div>
             ))}
           </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              INSIGHTS TAB
-             ════════════════════════════════════════════════════════════════ */}
-          {tab === 'insights' && (
-            <div className="space-y-5">
-              {!insights ? (
-                <div className={card + ' p-12 text-center'}>
-                  <Lightbulb className="w-10 h-10 text-sky-200 mx-auto mb-3" />
-                  <p className="text-sky-400">No insights available for this screening run.</p>
-                </div>
-              ) : (
-                <>
-                  {/* Overall recommendation — sky blue gradient instead of dark navy */}
-                  <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-2xl p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
-                        <Target className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <p className="text-sky-100 text-xs font-bold uppercase tracking-wide mb-2">
-                          Overall Hiring Recommendation
-                        </p>
-                        <p className="text-white leading-relaxed text-sm">{insights.hiringRecommendation}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid lg:grid-cols-2 gap-5">
-                    {/* Pipeline health */}
-                    <div className={card + ' p-5'}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <TrendingUp className="w-4 h-4 text-sky-500" />
-                        <h3 className="font-display font-bold text-sky-900">Pipeline Health</h3>
-                      </div>
-                      <p className="text-sky-700 text-sm leading-relaxed">{insights.pipelineHealth}</p>
-                    </div>
-
-                    {/* Pool strengths */}
-                    <div className={card + ' p-5'}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Star className="w-4 h-4 text-emerald-500" />
-                        <h3 className="font-display font-bold text-sky-900">Pool Strengths</h3>
-                      </div>
-                      <div className="space-y-2">
-                        {(insights.topStrengthsAcrossPool || []).map((s: string, i: number) => (
-                          <div key={i} className="flex items-start gap-2">
-                            <CheckCircle className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-                            <p className="text-sky-700 text-sm">{s}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Skills gap analysis */}
-                  {(insights.overallSkillGaps || []).length > 0 && (
-                    <div className={card + ' p-5'}>
-                      <div className="flex items-center gap-2 mb-5">
-                        <AlertTriangle className="w-4 h-4 text-amber-500" />
-                        <h3 className="font-display font-bold text-sky-900">Skills Gap Analysis</h3>
-                        <span className="text-sky-400 text-xs ml-1">— required skills missing across the talent pool</span>
-                      </div>
-                      <div className="space-y-3">
-                        {insights.overallSkillGaps.map((g: any, i: number) => (
-                          <div key={i} className={`rounded-xl p-4 border-2 ${
-                            g.severity === 'critical' ? 'bg-red-50 border-red-200'     :
-                            g.severity === 'moderate' ? 'bg-amber-50 border-amber-200' :
-                                                        'bg-sky-50 border-sky-200'
-                          }`}>
-                            <div className="flex items-start justify-between gap-4 mb-2">
-                              <div>
-                                <p className="font-semibold text-sky-900">{g.skill}</p>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full capitalize ${
-                                  g.severity === 'critical' ? 'bg-red-100 text-red-600'       :
-                                  g.severity === 'moderate' ? 'bg-amber-100 text-amber-700'   :
-                                                              'bg-sky-100 text-sky-600'
-                                }`}>{g.severity}</span>
-                              </div>
-                              <div className="text-right flex-shrink-0">
-                                <div className="font-display font-bold text-lg text-sky-900">{g.coverage}%</div>
-                                <div className="text-sky-400 text-xs">coverage</div>
-                              </div>
-                            </div>
-                            <div className="h-2 bg-white/60 rounded-full overflow-hidden mb-3">
-                              <div className="h-full rounded-full transition-all" style={{
-                                width: `${g.coverage}%`,
-                                background: g.severity === 'critical' ? '#ef4444' : g.severity === 'moderate' ? '#f59e0b' : '#0ea5e9',
-                              }} />
-                            </div>
-                            <div className="flex items-start gap-2">
-                              <Lightbulb className="w-3.5 h-3.5 text-sky-500 flex-shrink-0 mt-0.5" />
-                              <p className="text-sky-700 text-xs leading-relaxed">{g.recommendation}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Strategic recommendations */}
-                  {(insights.marketRecommendations || []).length > 0 && (
-                    <div className={card + ' p-5'}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Lightbulb className="w-4 h-4 text-indigo-500" />
-                        <h3 className="font-display font-bold text-sky-900">Strategic Recommendations for HR</h3>
-                      </div>
-                      <div className="space-y-3">
-                        {insights.marketRecommendations.map((r: string, i: number) => (
-                          <div key={i} className="flex items-start gap-3 bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                            <div className="w-6 h-6 rounded-full bg-indigo-200 text-indigo-700 text-xs font-bold
-                                            flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</div>
-                            <p className="text-indigo-800 text-sm leading-relaxed">{r}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Critical missing skills */}
-                  {(insights.criticalMissingSkills || []).length > 0 && (
-                    <div className="bg-red-50 rounded-2xl border-2 border-red-200 p-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <AlertTriangle className="w-4 h-4 text-red-500" />
-                        <h3 className="font-display font-bold text-red-800">Critical Missing Skills</h3>
-                        <span className="text-red-400 text-xs">— almost nobody in this pool has these</span>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {insights.criticalMissingSkills.map((s: string) => (
-                          <span key={s} className="text-xs font-semibold bg-red-100 text-red-700
-                                                   border border-red-200 px-3 py-1 rounded-full">{s}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
+          {/* Results count */}
+          <div className="flex items-center justify-between">
+            <p className="text-sky-400 text-sm">
+              Showing <span className="font-bold text-sky-700">{filtered.length}</span> of {allCandidates.length} candidates
+            </p>
+            <div className="flex items-center gap-2 text-xs text-sky-400">
+              <div className="w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-300" /> Shortlisted
+              <div className="w-3 h-3 rounded-sm bg-red-50 border border-red-200 ml-2" /> Not selected
             </div>
-          )}
+          </div>
 
-          {/* ════════════════════════════════════════════════════════════════
-              CANDIDATES TAB (Shortlisted OR All)
-             ════════════════════════════════════════════════════════════════ */}
-          {(tab === 'shortlisted' || tab === 'all') && (
-            <>
-              {displayList.length === 0 ? (
-                <div className={card + ' p-12 text-center'}>
-                  <Users className="w-10 h-10 text-sky-200 mx-auto mb-3" />
-                  <p className="text-sky-400">No candidates in this view.</p>
-                </div>
-              ) : (
-                <div className="grid md:grid-cols-2 gap-4">
-                  {displayList.map((c: any) => {
-                    const col = scoreColor(c.matchScore)
-                    return (
-                      <div key={c.applicantId || c._id}
-                        onClick={() => setSelected(c)}
-                        className={`bg-white rounded-2xl border-2 cursor-pointer transition-all
-                                    hover:shadow-md hover:-translate-y-0.5 relative overflow-hidden
-                                    ${c.isShortlisted !== false ? 'border-sky-100' : 'border-slate-100 opacity-80'}`}>
-                        {/* Top accent line for top 3 */}
-                        {c.rank && c.rank <= 3 && (
-                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-sky-400 to-sky-600" />
-                        )}
-                        <div className="p-5">
-                          {/* Header row */}
-                          <div className="flex items-start gap-3 mb-3">
-                            {c.rank ? (
-                              <div className={`w-9 h-9 rounded-full border-2 flex items-center justify-center
-                                              font-display font-bold text-sm flex-shrink-0 ${rankStyle(c.rank)}`}>
-                                {c.rank}
-                              </div>
-                            ) : (
-                              <div className="w-9 h-9 rounded-full border-2 border-slate-200 flex items-center justify-center flex-shrink-0">
-                                <Minus className="w-3 h-3 text-slate-400" />
-                              </div>
-                            )}
-                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600
-                                            text-white font-bold flex items-center justify-center flex-shrink-0 shadow-sm">
-                              {c.firstName?.[0]}{c.lastName?.[0]}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-display font-bold text-sky-900 truncate">{c.firstName} {c.lastName}</h3>
-                              <p className="text-sky-400 text-xs truncate">{c.headline}</p>
-                              <p className="text-sky-300 text-xs">{c.location}</p>
-                            </div>
-                            <ScoreRing score={c.matchScore} size={50} />
-                          </div>
+          {/* ── TABLE ───────────────────────────────────────────────────────── */}
+          {filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl border-2 border-sky-100 p-12 text-center">
+              <p className="text-sky-400 text-sm">No candidates match the current filters.</p>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl border-2 border-sky-100 overflow-hidden
+                            shadow-[0_2px_16px_rgba(14,165,233,0.08)]">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-sky-50 border-b-2 border-sky-100">
+                      <SortTh label="#"          colKey="rank"            className="w-12 text-center" />
+                      <SortTh label="Candidate"  colKey="name"            />
+                      <SortTh label="Score"      colKey="matchScore"      className="w-20" />
+                      <SortTh label="Skills"     colKey="skillsMatch"     className="w-28 hidden sm:table-cell" />
+                      <SortTh label="Experience" colKey="experienceMatch" className="w-28 hidden md:table-cell" />
+                      <SortTh label="Location"   colKey="location"        className="w-32 hidden lg:table-cell" />
+                      <th className="px-4 py-3 text-left text-xs font-bold text-sky-500 uppercase tracking-wide w-28">Status</th>
+                      <th className="px-4 py-3 text-center text-xs font-bold text-sky-500 uppercase tracking-wide w-28">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((c, idx) => {
+                      const isShort  = c.isShortlisted !== false
+                      const sentList = sentEmails[c.applicantId || c._id] || []
+                      return (
+                        <tr key={c.applicantId || c._id}
+                          className={`border-b border-sky-50 transition-colors cursor-pointer
+                            ${isShort
+                              ? 'bg-emerald-50/60 hover:bg-emerald-50'
+                              : 'bg-red-50/40 hover:bg-red-50/70'
+                            }`}
+                          onClick={() => setDetailCand(c)}>
 
-                          {/* Status badge */}
-                          <div className="flex items-center gap-2 mb-3 flex-wrap">
-                            {c.isShortlisted !== false ? (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold
-                                               bg-emerald-100 text-emerald-700 border border-emerald-200
-                                               px-2 py-0.5 rounded-full">
+                          {/* Rank */}
+                          <td className="px-4 py-3 text-center">
+                            <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full
+                                             text-xs font-bold border-2 ${
+                              c.rank === 1 ? 'bg-amber-100  border-amber-300  text-amber-700'  :
+                              c.rank === 2 ? 'bg-slate-100  border-slate-300  text-slate-600'  :
+                              c.rank === 3 ? 'bg-orange-100 border-orange-300 text-orange-600' :
+                              isShort      ? 'bg-emerald-100 border-emerald-300 text-emerald-700' :
+                                             'bg-red-100 border-red-200 text-red-500'
+                            }`}>
+                              {c.rank || (idx + 1)}
+                            </span>
+                          </td>
+
+                          {/* Candidate */}
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center
+                                              text-white font-bold text-sm flex-shrink-0 shadow-sm
+                                              ${isShort
+                                                ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
+                                                : 'bg-gradient-to-br from-slate-400 to-slate-500'}`}>
+                                {c.firstName?.[0]}{c.lastName?.[0]}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sky-900 text-sm truncate max-w-[160px]">
+                                  {c.firstName} {c.lastName}
+                                </p>
+                                <p className="text-sky-400 text-xs truncate max-w-[160px]">
+                                  {c.email || c.headline || '—'}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Overall score */}
+                          <td className="px-4 py-3">
+                            <ScorePill score={c.matchScore} />
+                          </td>
+
+                          {/* Skills match */}
+                          <td className="px-4 py-3 hidden sm:table-cell">
+                            <MiniBar value={c.scoreBreakdown?.skillsMatch || 0} color="#0ea5e9" />
+                          </td>
+
+                          {/* Experience match */}
+                          <td className="px-4 py-3 hidden md:table-cell">
+                            <MiniBar value={c.scoreBreakdown?.experienceMatch || 0} color="#6366f1" />
+                          </td>
+
+                          {/* Location */}
+                          <td className="px-4 py-3 hidden lg:table-cell">
+                            <span className="text-xs text-sky-500 truncate max-w-[120px] block">{c.location || '—'}</span>
+                          </td>
+
+                          {/* Status */}
+                          <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                            {isShort ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-bold
+                                               bg-emerald-100 text-emerald-700 border border-emerald-300
+                                               px-2.5 py-1 rounded-full">
                                 <CheckCircle className="w-3 h-3" /> Shortlisted
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 text-xs font-semibold
-                                               bg-slate-100 text-slate-500 border border-slate-200
-                                               px-2 py-0.5 rounded-full">
-                                Not Shortlisted
+                              <span className="inline-flex items-center gap-1 text-xs font-bold
+                                               bg-red-100 text-red-600 border border-red-200
+                                               px-2.5 py-1 rounded-full">
+                                <XCircle className="w-3 h-3" /> Not Selected
                               </span>
                             )}
-                            <span className="text-sky-400 text-xs">{c.availability?.status}</span>
-                          </div>
-
-                          {/* Score breakdown mini bars */}
-                          <div className="space-y-1.5 mb-3">
-                            {Object.entries(c.scoreBreakdown || {}).slice(0, 3).map(([k, v]: any) => (
-                              <div key={k} className="flex items-center gap-2">
-                                <span className="text-sky-500 text-[11px] w-24 flex-shrink-0 capitalize">
-                                  {k.replace(/([A-Z])/g, ' $1').trim()}
-                                </span>
-                                <div className="flex-1 h-1.5 bg-sky-50 rounded-full overflow-hidden">
-                                  <div className="h-full rounded-full" style={{ width:`${v}%`, background: scoreColor(v).bar }} />
-                                </div>
-                                <span className="text-sky-500 text-[11px] w-7 text-right font-bold">{v}</span>
+                            {/* Sent email badges */}
+                            {sentList.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                {sentList.map(t => (
+                                  <span key={t} className="text-[10px] bg-sky-100 text-sky-600
+                                                           px-1.5 py-0.5 rounded-full font-semibold">
+                                    ✉ {EMAIL_TEMPLATES[t].label}
+                                  </span>
+                                ))}
                               </div>
-                            ))}
-                          </div>
+                            )}
+                          </td>
 
-                          {/* Strength tags */}
-                          <div className="flex flex-wrap gap-1 mb-3">
-                            {(c.strengths || []).slice(0, 2).map((s: string, i: number) => (
-                              <span key={i} className="text-xs bg-emerald-50 text-emerald-600
-                                                       border border-emerald-200 px-2 py-0.5 rounded-full">
-                                ✓ {s.substring(0, 35)}{s.length > 35 ? '…' : ''}
-                              </span>
-                            ))}
-                          </div>
-
-                          {/* Reason excerpt */}
-                          {c.shortlistedReason && (
-                            <div className="bg-sky-50 border-l-4 border-sky-400 rounded-r-xl p-2.5 mb-3">
-                              <p className="text-sky-700 text-xs line-clamp-2">{c.shortlistedReason}</p>
+                          {/* Actions */}
+                          <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-center gap-2">
+                              {/* View detail */}
+                              <button onClick={() => setDetailCand(c)} title="View details"
+                                className="w-8 h-8 flex items-center justify-center rounded-lg
+                                           bg-sky-100 text-sky-600 hover:bg-sky-200 transition-colors">
+                                <Eye className="w-3.5 h-3.5" />
+                              </button>
+                              {/* Send email */}
+                              <button onClick={() => openEmail(c)} title="Send notification"
+                                className={`w-8 h-8 flex items-center justify-center rounded-lg
+                                            transition-colors
+                                            ${isShort
+                                              ? 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                                              : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>
+                                <Mail className="w-3.5 h-3.5" />
+                              </button>
                             </div>
-                          )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
 
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="text-sky-400">{c.location}</span>
-                            <span className="text-sky-500 font-semibold flex items-center gap-1">
-                              Full profile <ChevronRight className="w-3 h-3" />
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
+              {/* Table footer */}
+              <div className="px-5 py-3 bg-sky-50/50 border-t border-sky-100 flex items-center justify-between flex-wrap gap-2">
+                <span className="text-sky-400 text-xs">
+                  {shortlistedCount} shortlisted · {notShortlistedCount} not selected · {allCandidates.length} total evaluated
+                </span>
+                <div className="flex items-center gap-3">
+                  <span className="text-sky-400 text-xs">Sorted by: <span className="font-semibold text-sky-600">{sortKey}</span> {sortDir}</span>
                 </div>
-              )}
-            </>
+              </div>
+            </div>
           )}
         </>
       )}
 
       {/* ════════════════════════════════════════════════════════════════════
-          CANDIDATE DETAIL MODAL
+          DETAIL MODAL
          ════════════════════════════════════════════════════════════════════ */}
-      {selected && (
-        <div className="fixed inset-0 bg-sky-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl w-full max-w-2xl max-h-[92vh] overflow-y-auto shadow-2xl">
+      {detailCand && (
+        <div className="fixed inset-0 bg-sky-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setDetailCand(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh] overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}>
 
-            {/* Modal header */}
-            <div className="sticky top-0 bg-white border-b border-sky-100 px-6 sm:px-8 py-5
-                            flex items-center justify-between rounded-t-3xl z-10">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-sky-400 to-sky-600
-                                text-white font-bold text-lg flex items-center justify-center flex-shrink-0">
-                  {selected.firstName?.[0]}{selected.lastName?.[0]}
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-sky-100 px-6 py-4
+                            flex items-center justify-between z-10 rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center
+                                text-white font-bold text-base flex-shrink-0
+                                ${detailCand.isShortlisted !== false
+                                  ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
+                                  : 'bg-gradient-to-br from-slate-400 to-slate-500'}`}>
+                  {detailCand.firstName?.[0]}{detailCand.lastName?.[0]}
                 </div>
                 <div>
-                  <h2 className="font-display text-lg sm:text-xl font-bold text-sky-900">
-                    {selected.firstName} {selected.lastName}
+                  <h2 className="font-display font-bold text-sky-900 text-lg">
+                    {detailCand.firstName} {detailCand.lastName}
                   </h2>
-                  <p className="text-sky-400 text-sm flex items-center gap-2 flex-wrap">
-                    {selected.rank ? `Rank #${selected.rank} · ` : ''}Score {selected.matchScore}/100
-                    {selected.isShortlisted !== false
-                      ? <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-semibold">✓ Shortlisted</span>
-                      : <span className="text-xs bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full font-semibold">Not Shortlisted</span>}
+                  <p className="text-sky-400 text-xs">
+                    Rank #{detailCand.rank || '—'} · Score {detailCand.matchScore}/100
                   </p>
                 </div>
               </div>
-              <button onClick={() => setSelected(null)}
-                className="text-sky-400 hover:text-sky-700 w-9 h-9 flex items-center justify-center
-                           rounded-xl hover:bg-sky-50 transition-colors flex-shrink-0">
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { openEmail(detailCand); setDetailCand(null) }}
+                  className="flex items-center gap-1.5 bg-sky-500 text-white text-xs font-semibold
+                             px-3 py-2 rounded-lg hover:bg-sky-600 transition-colors min-h-[36px]">
+                  <Mail className="w-3.5 h-3.5" /> Notify
+                </button>
+                <button onClick={() => setDetailCand(null)}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl
+                             text-sky-400 hover:bg-sky-50 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            <div className="p-6 sm:p-8 space-y-6">
-
-              {/* Score overview */}
-              <div className="flex items-center gap-5 bg-sky-50 rounded-2xl p-5 border-2 border-sky-100">
-                <ScoreRing score={selected.matchScore} size={64} />
+            <div className="p-6 space-y-5">
+              {/* Status */}
+              <div className={`flex items-center gap-3 p-4 rounded-xl border-2 ${
+                detailCand.isShortlisted !== false
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-red-50 border-red-200'}`}>
+                {detailCand.isShortlisted !== false
+                  ? <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0" />
+                  : <XCircle    className="w-5 h-5 text-red-500 flex-shrink-0"     />}
                 <div>
-                  <p className="font-bold text-sky-900 text-lg">Overall Match Score</p>
-                  <p className={`text-sm font-semibold ${scoreColor(selected.matchScore).text}`}>
-                    {selected.matchScore >= 80 ? '⭐ Highly recommended' :
-                     selected.matchScore >= 60 ? '👍 Good match'         :
-                     selected.matchScore >= 40 ? '⚠ Borderline'          : '❌ Below threshold'}
+                  <p className={`font-bold text-sm ${detailCand.isShortlisted !== false ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {detailCand.isShortlisted !== false ? 'Shortlisted for this role' : 'Not selected for this role'}
                   </p>
+                  {detailCand.shortlistedReason && (
+                    <p className="text-xs text-sky-600 mt-1 leading-relaxed">{detailCand.shortlistedReason}</p>
+                  )}
                 </div>
               </div>
 
               {/* Score breakdown */}
               <div>
-                <h3 className="font-display font-bold text-sky-900 mb-3">Score Breakdown</h3>
-                <div className="space-y-3">
-                  {Object.entries(selected.scoreBreakdown || {}).map(([k, v]: any) => (
-                    <div key={k} className="flex items-center gap-3">
-                      <span className="text-sky-600 text-sm capitalize w-40 flex-shrink-0">
-                        {k.replace(/([A-Z])/g, ' $1').trim()}
-                      </span>
-                      <div className="flex-1 h-2.5 bg-sky-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all" style={{ width:`${v}%`, background: scoreColor(v).bar }} />
-                      </div>
-                      <span className={`font-bold text-sm w-10 text-right ${scoreColor(v).text}`}>{v}</span>
+                <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">Score Breakdown</p>
+                {Object.entries(detailCand.scoreBreakdown || {}).map(([k, v]: any) => (
+                  <div key={k} className="flex items-center gap-3 mb-2">
+                    <span className="text-sky-600 text-xs capitalize w-36 flex-shrink-0">
+                      {k.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                    <div className="flex-1 h-2 bg-sky-100 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width:`${v}%`, background: scoreColor(v) }} />
                     </div>
+                    <span className="text-xs font-bold w-8 text-right" style={{ color: scoreColor(v) }}>{v}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Strengths & Gaps */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                  <p className="text-emerald-600 text-[10px] font-bold uppercase tracking-wide mb-2">Strengths</p>
+                  {(detailCand.strengths || []).map((s: string, i: number) => (
+                    <p key={i} className="text-emerald-800 text-xs mb-1 flex gap-1"><span>✓</span>{s}</p>
+                  ))}
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-amber-600 text-[10px] font-bold uppercase tracking-wide mb-2">Gaps</p>
+                  {(detailCand.gaps || []).map((g: string, i: number) => (
+                    <p key={i} className="text-amber-800 text-xs mb-1 flex gap-1"><span>⚠</span>{g}</p>
                   ))}
                 </div>
               </div>
 
-              {/* Why shortlisted */}
-              {selected.shortlistedReason && (
-                <div className="bg-sky-50 border-l-4 border-sky-500 rounded-r-2xl p-5">
-                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-2">
-                    {selected.isShortlisted !== false ? '✓ Why Shortlisted' : '✗ Why Not Shortlisted'}
-                  </p>
-                  <p className="text-sky-800 text-sm leading-relaxed">{selected.shortlistedReason}</p>
+              {/* Recommendation */}
+              {detailCand.recommendation && (
+                <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-xl p-4">
+                  <p className="text-sky-100 text-[10px] font-bold uppercase tracking-wide mb-1">Recommendation</p>
+                  <p className="text-white text-sm leading-relaxed">{detailCand.recommendation}</p>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
 
-              {/* Strengths & Gaps */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-emerald-50 rounded-2xl p-4 border border-emerald-100">
-                  <p className="text-emerald-600 text-xs font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                    <TrendingUp className="w-3.5 h-3.5" /> Strengths
-                  </p>
-                  <ul className="space-y-2">
-                    {(selected.strengths || []).map((s: string, i: number) => (
-                      <li key={i} className="text-emerald-800 text-xs flex gap-2 leading-relaxed">
-                        <span className="flex-shrink-0 text-emerald-500">✓</span>{s}
-                      </li>
-                    ))}
-                  </ul>
+      {/* ════════════════════════════════════════════════════════════════════
+          EMAIL MODAL
+         ════════════════════════════════════════════════════════════════════ */}
+      {emailCand && (
+        <div className="fixed inset-0 bg-sky-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => setEmailCand(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+
+            {/* Header */}
+            <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-6 py-4
+                            flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-white" />
                 </div>
-                <div className="bg-amber-50 rounded-2xl p-4 border border-amber-100">
-                  <p className="text-amber-600 text-xs font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                    <TrendingDown className="w-3.5 h-3.5" /> Gaps / Risks
+                <div>
+                  <p className="text-white font-bold">Notify Applicant</p>
+                  <p className="text-sky-100 text-xs">
+                    {emailCand.firstName} {emailCand.lastName} · {emailCand.email || 'email on file'}
                   </p>
-                  <ul className="space-y-2">
-                    {(selected.gaps || []).map((g: string, i: number) => (
-                      <li key={i} className="text-amber-800 text-xs flex gap-2 leading-relaxed">
-                        <span className="flex-shrink-0 text-amber-500">⚠</span>{g}
-                      </li>
-                    ))}
-                  </ul>
+                </div>
+              </div>
+              <button onClick={() => setEmailCand(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl
+                           text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+
+              {/* Email type selector */}
+              <div>
+                <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-2">
+                  Notification Type
+                </p>
+                <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+                  {(Object.entries(EMAIL_TEMPLATES) as [EmailType, any][]).map(([type, tmpl]) => (
+                    <button key={type} onClick={() => changeEmailType(type)}
+                      className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2
+                                  transition-all text-xs font-semibold min-h-[64px] ${
+                        emailType === type
+                          ? 'border-sky-500 bg-sky-50 text-sky-700'
+                          : 'border-sky-100 text-sky-400 hover:border-sky-300 hover:text-sky-600'
+                      }`}>
+                      <tmpl.icon className={`w-4 h-4 ${emailType === type ? tmpl.color : ''}`} />
+                      <span className="text-center leading-tight">{tmpl.label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              {/* Skill scores */}
-              {(selected.skillScores || []).length > 0 && (
-                <div>
-                  <h3 className="font-display font-bold text-sky-900 mb-3">Skill-by-Skill Scores</h3>
-                  <div className="space-y-2">
-                    {selected.skillScores.map((s: any) => (
-                      <div key={s.name} className="flex items-center gap-3">
-                        <span className="text-sky-600 text-sm w-36 flex-shrink-0">{s.name}</span>
-                        <div className="flex-1 h-2 bg-sky-100 rounded-full overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width:`${s.score}%`, background: scoreColor(s.score).bar }} />
-                        </div>
-                        <span className={`font-bold text-sm w-8 text-right ${scoreColor(s.score).text}`}>{s.score}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Subject */}
+              <div>
+                <label className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-1 block">Subject</label>
+                <input type="text" value={emailSubject} onChange={e => setEmailSubject(e.target.value)}
+                  className="w-full border-2 border-sky-200 rounded-xl px-3 py-2.5 text-sm
+                             text-sky-800 outline-none focus:border-sky-400 transition-colors" />
+              </div>
 
-              {/* Skill gaps */}
-              {(selected.skillGaps || []).length > 0 && (
-                <div className="bg-red-50 rounded-2xl p-4 border-2 border-red-200">
-                  <p className="text-red-600 text-xs font-bold uppercase tracking-wide mb-3 flex items-center gap-1.5">
-                    <AlertTriangle className="w-3.5 h-3.5" /> Missing / Weak Skills
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {selected.skillGaps.map((g: string) => (
-                      <span key={g} className="text-xs bg-red-100 text-red-700 border border-red-200
-                                               px-2.5 py-1 rounded-full font-medium">{g}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Body */}
+              <div>
+                <label className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-1 block">
+                  Message
+                </label>
+                <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)} rows={7}
+                  className="w-full border-2 border-sky-200 rounded-xl px-3 py-2.5 text-sm
+                             text-sky-800 outline-none focus:border-sky-400 transition-colors resize-none" />
+              </div>
 
-              {/* Growth areas */}
-              {(selected.growthAreas || []).length > 0 && (
-                <div>
-                  <h3 className="font-display font-bold text-sky-900 mb-3 flex items-center gap-2">
-                    <ArrowUpRight className="w-4 h-4 text-sky-500" /> Growth Areas
-                  </h3>
-                  <ul className="space-y-2">
-                    {selected.growthAreas.map((a: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-sky-700 text-sm">
-                        <span className="w-5 h-5 rounded-full bg-sky-100 text-sky-600 text-xs font-bold
-                                         flex items-center justify-center flex-shrink-0 mt-0.5">{i + 1}</span>
-                        {a}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {/* Info note */}
+              <p className="text-[11px] text-sky-400 flex items-start gap-1.5">
+                <Clock className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                Sending this will update the applicant's status in the system and they will be notified.
+                The result will also appear on their application page.
+              </p>
 
-              {/* Course recommendations */}
-              {(selected.courseRecommendations || []).length > 0 && (
-                <div className="bg-indigo-50 rounded-2xl p-5 border border-indigo-100">
-                  <h3 className="font-display font-bold text-indigo-900 mb-3 flex items-center gap-2">
-                    <BookOpen className="w-4 h-4 text-indigo-500" /> Recommended Learning Path
-                  </h3>
-                  <ul className="space-y-2.5">
-                    {selected.courseRecommendations.map((r: string, i: number) => (
-                      <li key={i} className="flex items-start gap-3">
-                        <Award className="w-4 h-4 text-indigo-400 flex-shrink-0 mt-0.5" />
-                        <p className="text-indigo-800 text-sm leading-relaxed">{r}</p>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Final recommendation — sky blue gradient instead of dark navy */}
-              {selected.recommendation && (
-                <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-2xl p-5">
-                  <p className="text-sky-100 text-xs font-bold uppercase tracking-wide mb-2">
-                    Final Recommendation
-                  </p>
-                  <p className="text-white text-sm leading-relaxed">{selected.recommendation}</p>
-                </div>
-              )}
-
-              {/* Action buttons */}
-              <div className="flex gap-3 pt-2">
-                <button onClick={() => setSelected(null)}
-                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold
-                             px-4 py-3 rounded-xl transition-colors min-h-[48px]">
-                  ✓ Move to Interview
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setEmailCand(null)}
+                  className="flex-1 border-2 border-sky-200 text-sky-600 font-semibold
+                             py-3 rounded-xl hover:bg-sky-50 transition-colors min-h-[48px]">
+                  Cancel
                 </button>
-                <button onClick={() => setSelected(null)}
-                  className="flex-1 bg-red-50 text-red-500 font-semibold px-4 py-3
-                             rounded-xl hover:bg-red-100 transition-colors min-h-[48px]">
-                  ✗ Not Selected
+                <button onClick={sendEmail} disabled={sending}
+                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold
+                             py-3 rounded-xl transition-colors min-h-[48px] flex items-center
+                             justify-center gap-2 disabled:opacity-60">
+                  {sending
+                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Sending…</>
+                    : <><Send className="w-4 h-4" /> Send Notification</>}
                 </button>
               </div>
             </div>
