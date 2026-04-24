@@ -11,6 +11,7 @@ import {
   Linkedin, Github, Globe, GraduationCap, Award, Code2,
   Languages, CheckCircle, Minus, FileText, Building2,
   TrendingUp, BookOpen,
+  AlertCircle,
 } from 'lucide-react'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -130,6 +131,9 @@ export default function HRApplicantsPage() {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set())
   const [showExport, setShowExport] = useState(false)
   const [visibleCount, setVisibleCount] = useState(SHOW_MORE_STEP)
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [applicantToDelete, setApplicantToDelete] = useState<string | null>(null);
+const [isDeleting, setIsDeleting] = useState(false);
 
   // Filters
   const [search, setSearch]       = useState('')
@@ -225,6 +229,30 @@ export default function HRApplicantsPage() {
     catch { toast.error('Failed to delete') }
   }
 
+
+  const confirmDelete = (id: string) => {
+    setApplicantToDelete(id);
+    setDeleteModalOpen(true);
+  };
+  
+  // 2. Actually calls the API
+  const executeDelete = async () => {
+    if (!applicantToDelete) return;
+    
+    setIsDeleting(true);
+    try {
+      await applicantsAPI.delete(applicantToDelete);
+      toast.success('Applicant deleted successfully');
+      load(); // Refresh your list
+      setDeleteModalOpen(false); // Close modal
+    } catch {
+      toast.error('Failed to delete applicant');
+    } finally {
+      setIsDeleting(false);
+      setApplicantToDelete(null);
+    }
+  };
+  
   const toggleRow = (id: string) => setExpandedRows(prev => {
     const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n
   })
@@ -326,7 +354,7 @@ export default function HRApplicantsPage() {
   return (
     <div className="space-y-6">
 
-      {/* ── Header ── */}
+      {/* ── Header ── */}confirmDelete
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           {/* <h1 className="font-display text-2xl font-bold text-sky-950">Applicants</h1> */}
@@ -583,7 +611,7 @@ export default function HRApplicantsPage() {
                             className="text-sky-400 hover:text-sky-700 p-1.5 rounded-lg hover:bg-sky-50 transition-colors">
                             {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                           </button>
-                          <button onClick={() => deleteApplicant(a._id)} title="Delete"
+                          <button onClick={() => confirmDelete(a._id)} title="Delete"
                             className="text-red-300 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -681,6 +709,55 @@ export default function HRApplicantsPage() {
             </tbody>
           </table>
         </div>
+
+        {/* ── Delete Confirmation Modal ─────────────────────────── */}
+        {deleteModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div 
+              className="absolute inset-0 bg-sky-900/40 backdrop-blur-sm animate-in fade-in duration-200" 
+              onClick={() => !isDeleting && setDeleteModalOpen(false)}
+            />
+            
+            {/* Modal Content */}
+            <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl border-2 border-sky-100 p-8 animate-in zoom-in-95 duration-200">
+              <div className="flex flex-col items-center text-center">
+                {/* Warning Icon */}
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                  <AlertCircle className="w-8 h-8 text-red-500" />
+                </div>
+                
+                <h3 className="text-xl font-display font-bold text-sky-900 mb-2">
+                    Delete this applicant?
+                </h3>
+                <p className="text-sky-400 text-sm mb-8 leading-relaxed">
+                This cannot be undone.
+                </p>
+                
+                <div className="flex gap-3 w-full">
+                  <button
+                    disabled={isDeleting}
+                    onClick={() => setDeleteModalOpen(false)}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold text-sky-500 bg-sky-50 hover:bg-sky-100 transition-colors disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={isDeleting}
+                    onClick={executeDelete}
+                    className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2"
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      'Delete Applicant'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Show More / footer ── */}
         {!loading && allApplicants.length > 0 && (
