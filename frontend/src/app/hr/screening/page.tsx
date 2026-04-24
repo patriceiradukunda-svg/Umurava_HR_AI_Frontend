@@ -320,28 +320,7 @@ export default function HRScreeningPage() {
               </div>
             </div>
             <div className="p-5">
-              {/* Visual bar */}
-              <div className="flex gap-1 h-2.5 rounded-full overflow-hidden mb-4">
-                {Object.entries(weights).map(([k, v]) => (
-                  <div key={k} title={`${WEIGHT_META[k]?.label}: ${v}`}
-                    className={`${WEIGHT_META[k]?.color} transition-all`}
-                    style={{ flex: v }} />
-                ))}
-              </div>
 
-              {!showWeights && (
-                <div className="space-y-2 mb-4">
-                  {Object.entries(weights).map(([k, v]) => (
-                    <div key={k} className="flex items-center gap-3">
-                      <span className="text-sky-700 text-sm w-36 flex-shrink-0">{WEIGHT_META[k]?.label}</span>
-                      <div className="flex-1 h-2 bg-sky-50 rounded-full overflow-hidden">
-                        <div className={`h-full ${WEIGHT_META[k]?.color} rounded-full`} style={{ width: `${v}%` }} />
-                      </div>
-                      <span className="font-bold text-sky-600 text-sm w-10 text-right">{v}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {showWeights && (
                 <div className="space-y-4 mb-4 bg-sky-50 rounded-xl p-4 border-2 border-sky-100">
