@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width:               'device-width',
   initialScale:        1,
-  maximumScale:        1,   // prevents accidental zoom on input focus (iOS)
+  maximumScale:        1,   // prevents accidental zoom on input focus
   userScalable:        false,
   viewportFit:         'cover', // respects notch / safe areas
   themeColor:          '#0ea5e9',

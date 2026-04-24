@@ -329,7 +329,7 @@ export default function HRApplicantsPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="font-display text-2xl font-bold text-sky-950">Applicants</h1>
+          {/* <h1 className="font-display text-2xl font-bold text-sky-950">Applicants</h1> */}
           {/* <p className="text-sky-400 text-sm mt-1">
             <span className="font-semibold text-sky-700">{stats.total || 0}</span> total ·{' '}
             <span className="font-semibold text-amber-600">{stats.pending || 0}</span> pending ·{' '}
@@ -606,11 +606,11 @@ export default function HRApplicantsPage() {
                                 {job?.createdAt && <p className="flex items-center gap-1"><Briefcase className="w-3 h-3" />Job posted: {fmtDate(job.createdAt)}</p>}
                                 {job?.applicationDeadline && <p className="flex items-center gap-1"><Clock className="w-3 h-3" />Deadline: {fmtDate(job.applicationDeadline)}</p>}
                               </div>
-                              <div className="flex gap-2 mt-3">
+                              {/* <div className="flex gap-2 mt-3">
                                 {p.socialLinks?.linkedin  && <a href={p.socialLinks.linkedin}  target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-700 transition-colors"><Linkedin className="w-4 h-4" /></a>}
                                 {p.socialLinks?.github    && <a href={p.socialLinks.github}    target="_blank" rel="noreferrer" className="text-sky-700 hover:text-sky-900 transition-colors"><Github className="w-4 h-4" /></a>}
                                 {p.socialLinks?.portfolio && <a href={p.socialLinks.portfolio} target="_blank" rel="noreferrer" className="text-teal-600 hover:text-teal-800 transition-colors"><Globe className="w-4 h-4" /></a>}
-                              </div>
+                              </div> */}
                             </div>
                             {/* Col 2: Skills + Languages */}
                             <div>
@@ -666,10 +666,10 @@ export default function HRApplicantsPage() {
                                    Reject
                                 </button>
                               </div>
-                              <button onClick={() => setSelected(a)}
+                              {/* <button onClick={() => setSelected(a)}
                                 className="w-full mt-2 text-xs text-sky-500 font-semibold py-1.5 rounded-xl hover:bg-sky-50 transition-colors flex items-center justify-center gap-1">View
-                                {/* <Eye className="w-3 h-3" /> Full Profile */}
-                              </button>
+                               <Eye className="w-3 h-3" /> Full Profile
+                              </button> */}
                             </div>
                           </div>
                         </td>

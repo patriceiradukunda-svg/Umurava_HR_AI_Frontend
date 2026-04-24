@@ -160,7 +160,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
           </h1>
 
           {/* Search — tablet+ */}
-          <div className="hidden sm:flex items-center gap-2 bg-sky-50 border-2 border-sky-100
+          {/* <div className="hidden sm:flex items-center gap-2 bg-sky-50 border-2 border-sky-100
                           rounded-xl px-3 h-10 focus-within:border-sky-300 transition-colors">
             <Search className="w-4 h-4 text-sky-400 flex-shrink-0" />
             <input
@@ -168,19 +168,19 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
               className="bg-transparent text-sm text-sky-800 placeholder-sky-300
                          outline-none w-36 md:w-44"
             />
-          </div>
+          </div> */}
           {/* Search — mobile icon */}
-          <button className="sm:hidden w-10 h-10 flex items-center justify-center
+          {/* <button className="sm:hidden w-10 h-10 flex items-center justify-center
                              rounded-xl text-sky-500 hover:bg-sky-50 transition-colors">
             <Search className="w-5 h-5" />
-          </button>
+          </button> */}
 
           {/* Bell */}
-          <button className="relative w-10 h-10 border-2 border-sky-100 rounded-xl
+          {/* <button className="relative w-10 h-10 border-2 border-sky-100 rounded-xl
                              flex items-center justify-center hover:bg-sky-50 text-sky-500 transition-colors">
             <Bell className="w-4 h-4" />
             <span className="absolute top-2 right-2 w-2 h-2 bg-red-400 rounded-full border-2 border-white" />
-          </button>
+          </button> */}
         </header>
 
         {/* Page content */}

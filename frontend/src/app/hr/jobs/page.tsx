@@ -117,6 +117,9 @@ export default function HRJobsPage() {
   const [typeFilter, setType]         = useState('all')
   const [sortBy, setSort]             = useState('newest')
   const [showFilters, setShowFilters] = useState(false)
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+const [jobToDelete, setJobToDelete] = useState<string | null>(null);
+const [isDeleting, setIsDeleting] = useState(false);
 
   const { register, handleSubmit, reset, setValue, watch } = useForm({
     defaultValues: {
@@ -219,11 +222,35 @@ export default function HRJobsPage() {
     } finally { setBusy(false) }
   }
 
-  const deleteJob = async (id: string) => {
-    if (!confirm('Delete this job and all its applicants? This cannot be undone.')) return
-    try { await jobsAPI.delete(id); toast.success('Job deleted'); load() }
-    catch { toast.error('Failed to delete') }
+  // const deleteJob = async (id: string) => {
+  //   if (!confirm('Delete this job and all its applicants? This cannot be undone.')) return
+  //   try { await jobsAPI.delete(id); toast.success('Job deleted'); load() }
+  //   catch { toast.error('Failed to delete') }
+  // }
+
+  const confirmDelete = (id: string) => {
+  setJobToDelete(id);
+  setDeleteModalOpen(true);
+};
+
+// 2. Actually calls the API
+const executeDelete = async () => {
+  if (!jobToDelete) return;
+  
+  setIsDeleting(true);
+  try {
+    await jobsAPI.delete(jobToDelete);
+    toast.success('Job deleted successfully');
+    load(); // Refresh your list
+    setDeleteModalOpen(false); // Close modal
+  } catch {
+    toast.error('Failed to delete job');
+  } finally {
+    setIsDeleting(false);
+    setJobToDelete(null);
   }
+};
+
 
   const changeStatus = async (id: string, status: string) => {
     try { await jobsAPI.updateStatus(id, status); toast.success(`Status updated to ${status}`); load() }
@@ -240,7 +267,7 @@ export default function HRJobsPage() {
       {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className=" text-2xl font-bold text-sky-950">Job Postings</h1>
+          {/* <h1 className=" text-2xl font-bold text-sky-950">Job Postings</h1> */}
           {/* <p className="text-sky-400 text-sm mt-1">
             <span className="font-semibold text-sky-600">{stats.active || 0} </span> active ·{' '}
             <span className="font-semibold text-amber-600">{stats.draft || 0} </span> draft ·{' '}
@@ -487,7 +514,7 @@ export default function HRJobsPage() {
                         <option key={s} value={s}>{s}</option>
                       ))}
                     </select>
-                    <button onClick={() => deleteJob(job._id)}
+                    <button onClick={() => confirmDelete(job._id)}
                       className="text-red-300 hover:text-red-500 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
@@ -500,6 +527,54 @@ export default function HRJobsPage() {
         </div>
       )}
 
+{/* ── Delete Confirmation Modal ────────────────────────────────────── */}
+{deleteModalOpen && (
+  <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    {/* Backdrop */}
+    <div 
+      className="absolute inset-0 bg-sky-900/40 backdrop-blur-sm animate-in fade-in duration-200" 
+      onClick={() => !isDeleting && setDeleteModalOpen(false)}
+    />
+    
+    {/* Modal Content */}
+    <div className="relative bg-white w-full max-w-md rounded-3xl shadow-2xl border-2 border-sky-100 p-8 animate-in zoom-in-95 duration-200">
+      <div className="flex flex-col items-center text-center">
+        {/* Warning Icon */}
+        <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mb-6">
+          <AlertCircle className="w-8 h-8 text-red-500" />
+        </div>
+        
+        <h3 className="text-xl font-display font-bold text-sky-900 mb-2">
+          Delete Job Posting?
+        </h3>
+        <p className="text-sky-400 text-sm mb-8 leading-relaxed">
+          This will permanently remove the job and all associated applicant data. This action cannot be undone.
+        </p>
+        
+        <div className="flex gap-3 w-full">
+          <button
+            disabled={isDeleting}
+            onClick={() => setDeleteModalOpen(false)}
+            className="flex-1 px-6 py-3 rounded-xl font-bold text-sky-500 bg-sky-50 hover:bg-sky-100 transition-colors disabled:opacity-50"
+          >
+            Cancel
+          </button>
+          <button
+            disabled={isDeleting}
+            onClick={executeDelete}
+            className="flex-1 px-6 py-3 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600 shadow-lg shadow-red-200 transition-all flex items-center justify-center gap-2"
+          >
+            {isDeleting ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              'Delete Job'
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
       {/* ── Job Preview Modal ── */}
       {previewJob && (
         <div className="fixed inset-0 bg-sky-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">

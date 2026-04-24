@@ -59,9 +59,9 @@ export default function ApplicantLayout({ children }: { children: React.ReactNod
           </nav>
 
           <div className="flex items-center gap-3 flex-shrink-0">
-            <button className="w-9 h-9 border border-sky-200 rounded-xl flex items-center justify-center hover:bg-sky-50 text-sky-400">
+            {/* <button className="w-9 h-9 border border-sky-200 rounded-xl flex items-center justify-center hover:bg-sky-50 text-sky-400">
               <Bell className="w-4 h-4" />
-            </button>
+            </button> */}
             <div className="flex items-center gap-2">
               <div className="w-9 h-9 rounded-full bg-sky-gradient text-white text-xs font-bold flex items-center justify-center">
                 {initials}
