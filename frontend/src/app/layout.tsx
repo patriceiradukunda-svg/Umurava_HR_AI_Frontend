@@ -4,8 +4,8 @@ import { AuthProvider } from '@/context/AuthContext'
 import { Toaster } from 'react-hot-toast'
 
 export const metadata: Metadata = {
-  title: 'Umurava TalentAI – AI-Powered HR Screening',
-  description: 'Intelligent talent screening platform powered by Gemini AI',
+  title: 'Umurava Africa – HR AI Screening',
+  description: 'Intelligent talent screening platform',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
