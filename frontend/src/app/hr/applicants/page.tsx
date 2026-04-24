@@ -354,7 +354,7 @@ const [isDeleting, setIsDeleting] = useState(false);
   return (
     <div className="space-y-6">
 
-      {/* ── Header ── */}confirmDelete
+      {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           {/* <h1 className="font-display text-2xl font-bold text-sky-950">Applicants</h1> */}
