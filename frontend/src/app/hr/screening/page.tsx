@@ -204,7 +204,7 @@ export default function HRScreeningPage() {
                             <span className="text-sky-400 text-xs">{j.department}</span>
                             {/* ID badge to avoid name conflicts */}
                             <span className="text-sky-300 text-[10px] font-mono bg-sky-50 border border-sky-100 px-1.5 py-0.5 rounded">
-                              #{j._id.slice(-6).toUpperCase()}
+                              #{String(j._id).slice(-6).toUpperCase()}
                             </span>
                           </div>
                           <p className="font-display font-bold text-sky-900 text-sm leading-snug">{j.title}</p>
@@ -219,7 +219,7 @@ export default function HRScreeningPage() {
                         </div>
                       </div>
                       {/* Required skills preview */}
-                      {(j.requiredSkills || []).length > 0 && (
+                      {Array.isArray(j.requiredSkills) && j.requiredSkills.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-2">
                           {j.requiredSkills.slice(0, 4).map((s: string) => (
                             <span key={s} className="text-xs bg-sky-100 text-sky-600 px-2 py-0.5 rounded-full">{s}</span>
@@ -405,7 +405,7 @@ export default function HRScreeningPage() {
                 <div className="flex items-center gap-3 mt-1 flex-wrap">
                   <span className="text-sky-400 text-xs flex items-center gap-1"><Users className="w-3 h-3" />{job.applicantCount || 0} candidates</span>
                   <span className="text-sky-400 text-xs flex items-center gap-1"><Star className="w-3 h-3" />Top {shortlistSize}</span>
-                  <span className="text-sky-400 text-xs flex items-center gap-1"><Hash className="w-3 h-3" />{job._id.slice(-6).toUpperCase()}</span>
+                  <span className="text-sky-400 text-xs flex items-center gap-1"><Hash className="w-3 h-3" />{String(job._id).slice(-6).toUpperCase()}</span>
                 </div>
               </div>
             )}
