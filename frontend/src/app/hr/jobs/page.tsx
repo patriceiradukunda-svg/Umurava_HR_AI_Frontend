@@ -527,7 +527,7 @@ const executeDelete = async () => {
         </div>
       )}
 
-{/* ── Delete Confirmation Modal ────────────────────────────────────── */}
+{/* ── Delete Confirmation Modal ─────────────────────────── */}
 {deleteModalOpen && (
   <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
     {/* Backdrop */}
