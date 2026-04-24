@@ -243,7 +243,7 @@ export default function HRDashboardPage() {
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-sky-400 text-sm font-medium">{greeting} 👋</p>
-          <h1 className="font-display text-2xl font-bold text-sky-950 mt-0.5">HR Command Center</h1>
+          <h1 className="font-display text-2xl font-bold text-sky-950 mt-0.5">HR</h1>
           <div className="flex items-center gap-2 mt-1">
             <Calendar className="w-3.5 h-3.5 text-sky-400" />
             <span className="text-sky-400 text-xs">{todayStr}</span>
