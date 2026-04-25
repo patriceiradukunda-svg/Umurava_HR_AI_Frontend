@@ -1,59 +1,84 @@
-# Umurava_HR_AI_Frontend
+# Umurava AI Talent Screening Platform
 
-Next.js 14 frontend for the Umurava AI HR Screening Platform.
+Frontend for the **Umurava AI Hackathon Challenge**. Our project is an intelligent tool designed to help recruiters find the best talent quickly, fairly, and transparently. 
 
-## Stack
-- **Framework**: Next.js 14 (App Router)
-- **Styling**: Tailwind CSS (sky-blue + white theme)
-- **State**: React Context + hooks
-- **Forms**: react-hook-form
-- **Charts**: Recharts
-- **HTTP**: Axios
-- **Auth**: JWT stored in cookies (js-cookie)
+We focused on **Scenario 1**, ensuring our system works perfectly with the official **Umurava Talent Profile Schema**.
 
-## Two Portals
+##  Project Overview
+Hiring usually takes days of manual work. Our platform uses the **Google Gemini AI** to screen hundreds of applicants in seconds. 
 
-### HR Portal (`/hr/*`)
-- Dashboard with live stats
-- Job postings — full CRUD
-- Applicants — view, filter, upload CSV/PDF
-- AI Screening — trigger Gemini screening with live progress
-- Shortlist — view ranked candidates with AI reasoning
-- Pipeline — kanban view per job
-- Analytics — score distribution, skill gaps
-- Settings — AI model config, organization
+### Why it’s better:
+*   **It is Fast:** It finishes in seconds what would normally take a recruiter many hours or days.
+*   **It is Fair:** Because it is an AI, it is not biased. It treats everyone the same and only looks at their skills and experience, not their personal background.
+*   **It is Transparent:** The AI doesn't just give a score; it explains **why** it picked a candidate by listing their **Strengths** and **Gaps**.
 
-### Applicant Portal (`/applicant/*`)
-- Browse active job postings
-- Apply to positions with one click
-- My Applications — track status
-- Profile page
+##  The Tech Stack
+- **Frontend**: Next.js.
+- **AI**: Google Gemini API.
+- **Database**: MongoDB Atlas.
 
-## Local Setup
+##  Portals
 
-```bash
-npm install
-cp .env.example .env.local
-npm run dev        # runs on http://localhost:3000
+### 1. Recruiter Portal (`/hr/*`)
+*   **Dashboard**: See live stats of your hiring progress.
+*   **Job Management**: Create and edit job postings.
+*   **AI Screening**: Trigger the Gemini AI to rank applicants and see live progress.
+*   **Shortlist & Insights**: View the top candidates with clear AI reasoning on their fit.
+*   **Analytics**: See distribution charts of candidate scores and common skill gaps.
+
+### 2. Talent Portal (`/applicant/*`)
+*   **Profile Creation**: Build a profile that follows the official Umurava Schema.
+*   **Job Browser**: View and apply for active positions.
+*   **Tracking**: Keep track of all your applications in one place.
+
+## Project Structure
+```
+app/
+├── auth/hr/              # Login page
+├── hr/
+│   ├── layout.tsx        # Shared layout with drawer navigation
+│   ├── dashboard/        # Dashboard page
+│   ├── jobs/             # Job management
+│   ├── applicants/       # Applicant management
+│   ├── screening/        # AI screening workflow
+│   ├── shortlist/        # Results & shortlist
+│   └── settings/         # Settings
+src/
+├── lib/api.ts            # All API calls
+└── context/AuthContext.tsx
 ```
 
-## Deploy to Vercel
 
-1. Push to GitHub
-2. Import repo in Vercel
-3. Add environment variable:
-   - `NEXT_PUBLIC_API_URL` = `https://umurava-hr-ai-backend-1.onrender.com/api`
-4. Deploy
+##  Deployment
+- **<a href="https://umurava-hr-ai-frontend-three.vercel.app" target="_blank">Frontend</a>**: Deployed and hosted on **Vercel** 
+- **<a href="https://umurava-hr-ai-backend-1.onrender.com/api" target="_blank">Backend</a>**: Deployed and hosted on **Render** 
+- **Database**: Hosted on **MongoDB Atlas**.
 
-## Demo Credentials
+##  Local Setup
 
-**HR / Recruiter:**
-- Email: `recruiter@umurava.africa`
-- Password: `Recruiter@1234`
+1.  **Install dependencies**:
+    ```bash
+    npm install
+    ```
+2.  **Run the project**:
+    ```bash
+    npm run dev
+    ```
+    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-**Applicant:** Register a new account at `/auth/applicant`
+ ## Screening Workflow (UI Design)
+```
+1. Select Job → 2. Configure Weights → 3. Run Screening →
+4. View Shortlist → 5. Review Candidates → 6. Send Notifications
+```
 
-## API Connection
+## 🔑 Demo Credentials
 
-All API calls go through `src/lib/api.ts` which connects to the backend.
-Update `NEXT_PUBLIC_API_URL` in your environment to point to your backend.
+**Recruiter Account:**
+- **Email:** `recruiter@umurava.africa`
+- **Password:** `Recruiter@1234`
+
+**JobSeeker Account:** You can register a new account directly on the platform.
+
+---
+*Built with ❤️ by Syntarecy team*
