@@ -11,14 +11,19 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!loading && user) {
-      if (user.role === 'applicant') router.push('/applicant/jobs')
-      else router.push('/hr/dashboard')
+      if (user.role === 'applicant') router.replace('/applicant/jobs')
+      else router.replace('/hr/dashboard')
     }
   }, [user, loading, router])
 
-  if (loading) return (
-    <div className="min-h-screen bg-sky-50 flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+  // Block ALL content while auth resolves OR if a redirect is about to fire.
+  // This prevents any flash of the landing page for logged-in users.
+  if (loading || user) return (
+    <div className="min-h-screen bg-sky-950 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sky-400 text-sm font-medium">Loading your workspace…</p>
+      </div>
     </div>
   )
 
@@ -61,9 +66,9 @@ export default function HomePage() {
           </h1>
 
           <p className="text-sky-700 text-xl leading-relaxed mb-12 max-w-2xl mx-auto">
-            Umurava Talent Platform helps organizations discover the right candidates faster and supports 
-            applicants in showcasing their strengths with confidence. From application to shortlisting, 
-            the platform simplifies each step of the hiring journey so recruiters can focus on 
+            Umurava Talent Platform helps organizations discover the right candidates faster and supports
+            applicants in showcasing their strengths with confidence. From application to shortlisting,
+            the platform simplifies each step of the hiring journey so recruiters can focus on
             meaningful conversations and candidates can focus on presenting their best selves.
           </p>
 
@@ -94,7 +99,7 @@ export default function HomePage() {
             {[
               {
                 icon: BrainCircuit,
-                title: 'AI Screening',
+                title: 'Smart Screening',
                 desc: 'Multi-candidate batch evaluation with weighted scoring across skills, experience, education and more.',
                 color: 'text-sky-400',
                 bg: 'bg-sky-900',
@@ -102,14 +107,14 @@ export default function HomePage() {
               {
                 icon: Zap,
                 title: 'Instant Shortlists',
-                desc: 'Screen 100+ candidates in under 5 minutes. Get ranked Top 10 or Top 20 with full AI reasoning.',
+                desc: 'Screen 100+ candidates in minutes. Get a ranked shortlist with clear reasoning behind every decision.',
                 color: 'text-emerald-400',
                 bg: 'bg-emerald-900/30',
               },
               {
                 icon: Shield,
-                title: 'Explainable AI',
-                desc: 'Every decision comes with strengths, gaps, and a clear recommendation. No black boxes.',
+                title: 'Transparent Decisions',
+                desc: 'Every decision comes with strengths, gaps, and a clear recommendation — no guesswork.',
                 color: 'text-amber-400',
                 bg: 'bg-amber-900/20',
               },
@@ -131,7 +136,7 @@ export default function HomePage() {
             Ready to transform your hiring?
           </h2>
           <div className="flex flex-wrap justify-center gap-3 mb-10">
-            {['AI-powered screening','Bias reduction','Instant shortlists','Full explainability'].map(f => (
+            {['Smart screening','Bias reduction','Instant shortlists','Full transparency'].map(f => (
               <div key={f} className="flex items-center gap-2 bg-white border border-sky-200 rounded-full px-4 py-2">
                 <CheckCircle className="w-4 h-4 text-sky-500" />
                 <span className="text-sky-800 text-sm font-medium">{f}</span>
