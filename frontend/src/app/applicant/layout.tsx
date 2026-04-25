@@ -11,20 +11,30 @@ const navItems = [
   { href: '/applicant/profile',         icon: User,      label: 'My Profile' },
 ]
 
+function AuthSpinner() {
+  return (
+    <div className="min-h-screen bg-sky-50 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sky-400 text-sm font-medium">Verifying access…</p>
+      </div>
+    </div>
+  )
+}
+
 export default function ApplicantLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, isApplicant } = useAuth()
   const router   = useRouter()
   const pathname = usePathname()
 
   useEffect(() => {
-    if (!loading && (!user || !isApplicant)) router.push('/auth/applicant')
+    if (loading) return
+    if (!user)        { router.replace('/auth/applicant'); return }
+    if (!isApplicant) { router.replace('/hr/dashboard');   return }  // HR user on wrong portal
   }, [user, loading, isApplicant, router])
 
-  if (loading || !user) return (
-    <div className="min-h-screen bg-sky-50 flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  // Block ALL content until auth confirmed — no flash possible
+  if (loading || !user || !isApplicant) return <AuthSpinner />
 
   const initials = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
 
@@ -68,7 +78,8 @@ export default function ApplicantLayout({ children }: { children: React.ReactNod
               </div>
               <span className="hidden sm:block text-sky-800 text-sm font-semibold">{user.firstName}</span>
             </div>
-            <button onClick={() => { logout(); router.push('/auth/applicant') }}
+            <button
+              onClick={() => { logout(); router.replace('/auth/applicant') }}
               className="text-sky-400 hover:text-red-400 transition-colors p-1">
               <LogOut className="w-4 h-4" />
             </button>
