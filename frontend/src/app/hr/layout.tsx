@@ -16,17 +16,30 @@ const navItems = [
   { href: '/hr/shortlist',  icon: Star,             label: 'Shortlists'   },
 ]
 
+function AuthSpinner() {
+  return (
+    <div className="min-h-screen bg-sky-950 flex items-center justify-center">
+      <div className="flex flex-col items-center gap-4">
+        <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+        <p className="text-sky-500 text-sm font-medium">Verifying access…</p>
+      </div>
+    </div>
+  )
+}
+
 export default function HRLayout({ children }: { children: React.ReactNode }) {
   const { user, loading, logout, isHR } = useAuth()
   const router   = useRouter()
   const pathname = usePathname()
-  const [open, setOpen] = useState(false) // single drawer for ALL screen sizes
+  const [open, setOpen] = useState(false)
 
   useEffect(() => {
-    if (!loading && (!user || !isHR)) router.push('/auth/hr')
+    if (loading) return
+    if (!user) { router.replace('/auth/hr'); return }
+    if (!isHR) { router.replace('/applicant/jobs'); return }   // wrong role
   }, [user, loading, isHR, router])
 
-  // Close on route change
+  // Close drawer on route change
   useEffect(() => { setOpen(false) }, [pathname])
 
   // Close on Escape
@@ -36,11 +49,8 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('keydown', handler)
   }, [])
 
-  if (loading || !user) return (
-    <div className="min-h-screen bg-sky-50 flex items-center justify-center">
-      <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
-    </div>
-  )
+  // BLOCK all content until auth is confirmed — prevents any flash
+  if (loading || !user || !isHR) return <AuthSpinner />
 
   const initials  = `${user.firstName[0]}${user.lastName[0]}`.toUpperCase()
   const pageTitle = pathname.split('/').pop()?.replace(/-/g, ' ') || 'Dashboard'
@@ -56,7 +66,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* ── Drawer sidebar (all screen sizes) ────────────────────────────── */}
+      {/* ── Drawer sidebar ────────────────────────────────────────────────── */}
       <aside className={`
         fixed top-0 left-0 h-dvh z-50 w-64 flex flex-col
         bg-white border-r-2 border-sky-100
@@ -65,7 +75,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
         ${open ? 'translate-x-0' : '-translate-x-full'}
       `}>
 
-        {/* Brand + close button */}
+        {/* Brand + close */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sky-100 flex-shrink-0">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-400 to-sky-600
                           flex items-center justify-center shadow-sm flex-shrink-0">
@@ -121,8 +131,8 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
               <p className="text-sky-400 text-xs capitalize">{user.role}</p>
             </div>
             <button
-              onClick={() => { logout(); router.push('/auth/hr') }}
-              title="Logout"
+              onClick={() => { logout(); router.replace('/auth/hr') }}
+              title="Sign out"
               className="text-sky-400 hover:text-red-400 hover:bg-red-50
                          w-9 h-9 flex items-center justify-center rounded-lg transition-colors"
             >
@@ -132,7 +142,7 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Main content ─────────────────────────────────────────────────── */}
+      {/* ── Main content ──────────────────────────────────────────────────── */}
       <div className="flex flex-col min-h-screen pb-16 md:pb-0">
 
         {/* Topbar */}
@@ -144,7 +154,6 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
           px-4 h-14 sm:px-5 sm:h-16
           flex-shrink-0
         ">
-          {/* ☰ Hamburger — on ALL screen sizes */}
           <button
             onClick={() => setOpen(v => !v)}
             aria-label="Open navigation"
@@ -158,29 +167,6 @@ export default function HRLayout({ children }: { children: React.ReactNode }) {
                          text-base sm:text-lg flex-1 truncate">
             {pageTitle}
           </h1>
-
-          {/* Search — tablet+ */}
-          {/* <div className="hidden sm:flex items-center gap-2 bg-sky-50 border-2 border-sky-100
-                          rounded-xl px-3 h-10 focus-within:border-sky-300 transition-colors">
-            <Search className="w-4 h-4 text-sky-400 flex-shrink-0" />
-            <input
-              placeholder="Search…"
-              className="bg-transparent text-sm text-sky-800 placeholder-sky-300
-                         outline-none w-36 md:w-44"
-            />
-          </div> */}
-          {/* Search — mobile icon */}
-          {/* <button className="sm:hidden w-10 h-10 flex items-center justify-center
-                             rounded-xl text-sky-500 hover:bg-sky-50 transition-colors">
-            <Search className="w-5 h-5" />
-          </button> */}
-
-          {/* Bell */}
-          {/* <button className="relative w-10 h-10 border-2 border-sky-100 rounded-xl
-                             flex items-center justify-center hover:bg-sky-50 text-sky-500 transition-colors">
-            <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2 w-2 h-2 bg-red-400 rounded-full border-2 border-white" />
-          </button> */}
         </header>
 
         {/* Page content */}
