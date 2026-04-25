@@ -78,7 +78,13 @@ src/
 - **Email:** `recruiter@umurava.africa`
 - **Password:** `Recruiter@1234`
 
-**JobSeeker Account:** You can register a new account directly on the platform.
+
+## 🔑 Demo Credentials
+
+**JobSeeker Account:**
+- **Email:** patriceir@gmail.com`
+- **Password:** `Syntare123`
+** You can register a new account directly on the platform.**
 
 ---
 *Built with ❤️ by Syntarecy team*
