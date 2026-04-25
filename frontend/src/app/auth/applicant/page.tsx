@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
@@ -11,9 +11,23 @@ export default function ApplicantAuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [showPass, setShowPass] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { login, register: registerUser } = useAuth()
+  const { login, register: registerUser, user, loading, isApplicant, isHR } = useAuth()
   const router = useRouter()
   const { register, handleSubmit } = useForm()
+
+  // Already logged in — redirect away immediately
+  useEffect(() => {
+    if (loading) return
+    if (user && isApplicant) router.replace('/applicant/jobs')
+    if (user && isHR)        router.replace('/hr/dashboard')
+  }, [user, loading, isApplicant, isHR, router])
+
+  // Block page while auth resolves or user is already logged in
+  if (loading || user) return (
+    <div className="min-h-screen bg-sky-50 flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   const onSubmit = async (data: any) => {
     setBusy(true)
@@ -25,7 +39,7 @@ export default function ApplicantAuthPage() {
           return
         }
         toast.success('Welcome back!')
-        router.push('/applicant/jobs')
+        router.replace('/applicant/jobs')
       } else {
         await registerUser({
           firstName: data.firstName,
@@ -35,7 +49,7 @@ export default function ApplicantAuthPage() {
           role:      'applicant',
         })
         toast.success('Account created! Browse open positions.')
-        router.push('/applicant/jobs')
+        router.replace('/applicant/jobs')
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Authentication failed')
