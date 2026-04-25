@@ -101,7 +101,9 @@ export default function HRScreeningPage() {
   }, [])
 
   const job        = jobs.find(j => j._id === selectedJob)
-  const weightTotal = Object.values(weights).reduce((a, b) => a + b, 0)
+  const weightTotal       = Object.values(weights).reduce((a, b) => a + b, 0)
+  const applicantCount    = job?.applicantCount || 0
+  const shortlistTooLarge = applicantCount > 0 && shortlistSize > applicantCount
   const resetWeights = () => setWeights({ ...DEFAULT_WEIGHTS })
   const setWeight    = (key: keyof typeof weights, val: number) =>
     setWeights(w => ({ ...w, [key]: Math.min(100, Math.max(0, val)) }))
@@ -423,7 +425,7 @@ export default function HRScreeningPage() {
 
           {/* Run button */}
           <button onClick={runScreening}
-            disabled={running || !selectedJob || !job?.applicantCount}
+            disabled={running || !selectedJob || !job?.applicantCount || shortlistTooLarge}
             className={`w-full flex items-center justify-center gap-3 font-bold py-4 rounded-2xl text-base transition-all min-h-[56px] ${
               running || !selectedJob || !job?.applicantCount
                 ? 'bg-sky-100 text-sky-300 cursor-not-allowed'
@@ -442,6 +444,21 @@ export default function HRScreeningPage() {
               This job has no applicants yet.{' '}
               <Link href="/hr/applicants" className="underline font-semibold">Add applicants →</Link>
             </p>
+          )}
+          {shortlistTooLarge && !running && (
+            <div className="flex items-start gap-3 bg-red-50 border-2 border-red-200 rounded-2xl px-4 py-3">
+              <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-red-700 font-bold text-sm">
+                  Shortlist size exceeds applicant count
+                </p>
+                <p className="text-red-500 text-xs mt-0.5">
+                  You want to shortlist <span className="font-bold">{shortlistSize}</span> candidates but this job only has{' '}
+                  <span className="font-bold">{applicantCount}</span> applicant{applicantCount !== 1 ? 's' : ''}.
+                  Please reduce the shortlist size to <span className="font-bold">{applicantCount}</span> or fewer.
+                </p>
+              </div>
+            </div>
           )}
         </div>
 
