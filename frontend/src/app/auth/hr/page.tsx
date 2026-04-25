@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import toast from 'react-hot-toast'
@@ -11,9 +11,23 @@ export default function HRAuthPage() {
   const [mode, setMode] = useState<'login' | 'register'>('login')
   const [showPass, setShowPass] = useState(false)
   const [busy, setBusy] = useState(false)
-  const { login } = useAuth()
+  const { login, user, loading, isHR, isApplicant } = useAuth()
   const router = useRouter()
   const { register, handleSubmit } = useForm()
+
+  // Already logged in — redirect away from login page immediately
+  useEffect(() => {
+    if (loading) return
+    if (user && isHR)        router.replace('/hr/dashboard')
+    if (user && isApplicant) router.replace('/applicant/jobs')
+  }, [user, loading, isHR, isApplicant, router])
+
+  // Block login page while auth resolves or user is already logged in
+  if (loading || user) return (
+    <div className="min-h-screen bg-sky-950 flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" />
+    </div>
+  )
 
   const onSubmit = async (data: any) => {
     if (mode === 'register') {
@@ -28,7 +42,7 @@ export default function HRAuthPage() {
         return
       }
       toast.success(`Welcome back, ${data.email.split('@')[0]}!`)
-      router.push('/hr/dashboard')
+      router.replace('/hr/dashboard')
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Invalid email or password')
     } finally {
