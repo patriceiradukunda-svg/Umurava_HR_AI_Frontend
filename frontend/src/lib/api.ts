@@ -35,10 +35,10 @@ api.interceptors.response.use(
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 export const authAPI = {
-  register:       (data: object)  => api.post('/auth/register', data),
-  login:          (data: object)  => api.post('/auth/login', data),
-  me:             ()              => api.get('/auth/me'),
-  changePassword: (data: object)  => api.patch('/auth/change-password', data),
+  register:       (data: object) => api.post('/auth/register', data),
+  login:          (data: object) => api.post('/auth/login', data),
+  me:             ()             => api.get('/auth/me'),
+  changePassword: (data: object) => api.patch('/auth/change-password', data),
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
@@ -48,42 +48,36 @@ export const dashboardAPI = {
 
 // ── Jobs ──────────────────────────────────────────────────────────────────────
 export const jobsAPI = {
-  list:         (params?: object)             => api.get('/jobs', { params }),
-  stats:        ()                            => api.get('/jobs/stats'),
-  get:          (id: string)                  => api.get(`/jobs/${id}`),
-  create:       (data: object)                => api.post('/jobs', data),
-  update:       (id: string, data: object)    => api.put(`/jobs/${id}`, data),
-  updateStatus: (id: string, status: string)  => api.patch(`/jobs/${id}/status`, { status }),
-  delete:       (id: string)                  => api.delete(`/jobs/${id}`),
-  applicants:   (id: string, params?: object) => api.get(`/jobs/${id}/applicants`, { params }),
+  list:         (params?: object)            => api.get('/jobs', { params }),
+  stats:        ()                           => api.get('/jobs/stats'),
+  get:          (id: string)                 => api.get(`/jobs/${id}`),
+  create:       (data: object)               => api.post('/jobs', data),
+  update:       (id: string, data: object)   => api.put(`/jobs/${id}`, data),
+  updateStatus: (id: string, status: string) => api.patch(`/jobs/${id}/status`, { status }),
+  delete:       (id: string)                 => api.delete(`/jobs/${id}`),
+  applicants:   (id: string, params?: object)=> api.get(`/jobs/${id}/applicants`, { params }),
 }
 
 // ── Applicants ────────────────────────────────────────────────────────────────
 export const applicantsAPI = {
-  list:         (params?: object)             => api.get('/applicants', { params }),
-  stats:        ()                            => api.get('/applicants/stats'),
-  get:          (id: string)                  => api.get(`/applicants/${id}`),
-  create:       (data: object)                => api.post('/applicants', data),
-
-  // File upload — matches POST /api/applicants/bulk-upload in backend
-  bulkUpload:   (formData: FormData)          => api.post('/applicants/bulk-upload', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-    timeout: 120000, // bulk uploads can take longer
-  }),
-
-  updateStatus: (id: string, status: string)  => api.patch(`/applicants/${id}/status`, { status }),
-  update:       (id: string, data: object)    => api.patch(`/applicants/${id}`, data),
-  delete:       (id: string)                  => api.delete(`/applicants/${id}`),
+  list:         (params?: object)            => api.get('/applicants', { params }),
+  stats:        ()                           => api.get('/applicants/stats'),
+  get:          (id: string)                 => api.get(`/applicants/${id}`),
+  create:       (data: object)               => api.post('/applicants', data),
+  updateStatus: (id: string, status: string) => api.patch(`/applicants/${id}/status`, { status }),
+  update:       (id: string, data: object)   => api.patch(`/applicants/${id}`, data),
+  delete:       (id: string)                 => api.delete(`/applicants/${id}`),
 }
 
 // ── Screening ─────────────────────────────────────────────────────────────────
 export const screeningAPI = {
-  list:       (params?: object) => api.get('/screening', { params }),
-  get:        (id: string)      => api.get(`/screening/${id}`),
-  latest:     (jobId: string)   => api.get(`/screening/latest/${jobId}`),
-  run:        (data: object)    => api.post('/screening/run', data),
-  pollStatus: (id: string)      => api.get(`/screening/${id}/status`),
-  delete:     (id: string)      => api.delete(`/screening/${id}`),
+  list:            (params?: object) => api.get('/screening', { params }),
+  get:             (id: string)      => api.get(`/screening/${id}`),
+  latest:          (jobId: string)   => api.get(`/screening/latest/${jobId}`),
+  run:             (data: object)    => api.post('/screening/run', data),
+  pollStatus:      (id: string)      => api.get(`/screening/${id}/status`),
+  delete:          (id: string)      => api.delete(`/screening/${id}`),
+  deleteScreening: (id: string)      => api.delete(`/screening/${id}`), // alias used by shortlist page
 }
 
 // ── Analytics ─────────────────────────────────────────────────────────────────
@@ -94,7 +88,6 @@ export const analyticsAPI = {
 }
 
 // ── Settings ──────────────────────────────────────────────────────────────────
-// Matches the settings.routes.ts: GET /settings, PATCH /settings, DELETE /settings
 export const settingsAPI = {
   get:    ()             => api.get('/settings'),
   update: (data: object) => api.patch('/settings', data),
