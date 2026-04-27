@@ -719,4 +719,292 @@ export default function HRShortlistPage() {
         <div className="fixed inset-0 bg-sky-900/50 backdrop-blur-sm z-50
                         flex items-center justify-center p-4"
           onClick={() => setDetailCand(null)}>
-         
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh]
+                          overflow-y-auto shadow-2xl"
+            onClick={e => e.stopPropagation()}>
+
+            <div className="sticky top-0 bg-white border-b border-sky-100 px-6 py-4
+                            flex items-center justify-between rounded-t-2xl z-10">
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center
+                                text-white font-bold text-base flex-shrink-0
+                                ${detailCand.isShortlisted !== false
+                                  ? 'bg-gradient-to-br from-emerald-400 to-emerald-600'
+                                  : 'bg-gradient-to-br from-slate-400 to-slate-500'}`}>
+                  {detailCand.firstName?.[0]}{detailCand.lastName?.[0]}
+                </div>
+                <div>
+                  <h2 className="font-display font-bold text-sky-900 text-lg">
+                    {detailCand.firstName} {detailCand.lastName}
+                  </h2>
+                  <p className="text-sky-400 text-xs">
+                    Rank #{detailCand.rank ?? '—'} · Score {detailCand.matchScore}/100
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setDetailCand(null); openEmail(detailCand) }}
+                  className="flex items-center gap-1.5 bg-sky-500 text-white text-xs
+                             font-semibold px-3 py-2 rounded-lg hover:bg-sky-600
+                             transition-colors min-h-[36px]">
+                  <Mail className="w-3.5 h-3.5" /> Notify
+                </button>
+                <button onClick={() => setDetailCand(null)}
+                  className="w-9 h-9 flex items-center justify-center rounded-xl
+                             text-sky-400 hover:bg-sky-50 transition-colors">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+           {/* Rest of modal content - status, score breakdown, etc. */}
+            <div className="p-6 space-y-5">
+              {/* Status */}
+              <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
+                detailCand.isShortlisted !== false
+                  ? 'bg-emerald-50 border-emerald-200'
+                  : 'bg-red-50 border-red-200'}`}>
+                {detailCand.isShortlisted !== false
+                  ? <CheckCircle className="w-5 h-5 text-emerald-500 flex-shrink-0 mt-0.5" />
+                  : <XCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />}
+                <div>
+                  <p className={`font-bold text-sm ${
+                    detailCand.isShortlisted !== false ? 'text-emerald-700' : 'text-red-600'}`}>
+                    {detailCand.isShortlisted !== false
+                      ? 'Shortlisted for this role'
+                      : 'Not selected for this role'}
+                  </p>
+                  {detailCand.shortlistedReason && (
+                    <p className="text-xs text-sky-600 mt-1 leading-relaxed">
+                      {detailCand.shortlistedReason}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Score breakdown */}
+              {Object.keys(detailCand.scoreBreakdown ?? {}).length > 0 && (
+                <div>
+                  <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">
+                    Score Breakdown
+                  </p>
+                  {Object.entries(detailCand.scoreBreakdown).map(([k, v]: any) => (
+                    <div key={k} className="flex items-center gap-3 mb-2">
+                      <span className="text-sky-600 text-xs capitalize w-36 flex-shrink-0">
+                        {k.replace(/([A-Z])/g, ' $1').trim()}
+                      </span>
+                      <div className="flex-1 h-2 bg-sky-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full"
+                          style={{ width:`${v}%`, background: scoreColor(v) }} />
+                      </div>
+                      <span className="text-xs font-bold w-8 text-right"
+                        style={{ color: scoreColor(v) }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Strengths & Gaps */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="bg-emerald-50 rounded-xl p-3 border border-emerald-100">
+                  <p className="text-emerald-600 text-[10px] font-bold uppercase tracking-wide mb-2">
+                    Strengths
+                  </p>
+                  {(detailCand.strengths ?? []).map((s: string, i: number) => (
+                    <p key={i} className="text-emerald-800 text-xs mb-1 flex gap-1 leading-relaxed">
+                      <span className="flex-shrink-0">✓</span>{s}
+                    </p>
+                  ))}
+                </div>
+                <div className="bg-amber-50 rounded-xl p-3 border border-amber-100">
+                  <p className="text-amber-600 text-[10px] font-bold uppercase tracking-wide mb-2">
+                    Gaps
+                  </p>
+                  {(detailCand.gaps ?? []).map((g: string, i: number) => (
+                    <p key={i} className="text-amber-800 text-xs mb-1 flex gap-1 leading-relaxed">
+                      <span className="flex-shrink-0">⚠</span>{g}
+                    </p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Recommendation */}
+              {detailCand.recommendation && (
+                <div className="bg-gradient-to-r from-sky-500 to-sky-600 rounded-xl p-4">
+                  <p className="text-sky-100 text-[10px] font-bold uppercase tracking-wide mb-1">
+                    Recommendation
+                  </p>
+                  <p className="text-white text-sm leading-relaxed">{detailCand.recommendation}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* EMAIL MODAL */}
+      {emailCand && (
+        <div className="fixed inset-0 bg-sky-900/50 backdrop-blur-sm z-50
+                        flex items-center justify-center p-4"
+          onClick={() => setEmailCand(null)}>
+          <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+
+            <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-6 py-4
+                            flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-white font-bold">Notify Applicant</p>
+                  <p className="text-sky-100 text-xs">
+                    {emailCand.firstName} {emailCand.lastName}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setEmailCand(null)}
+                className="w-8 h-8 flex items-center justify-center rounded-xl
+                           text-white/70 hover:text-white hover:bg-white/10 transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Type selector */}
+              <div>
+                <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-2">
+                  Notification Type
+                </p>
+                <div className="grid grid-cols-5 gap-2">
+                  {(Object.entries(EMAIL_TEMPLATES) as [EmailType, any][]).map(([type, tmpl]) => (
+                    <button key={type} onClick={() => changeEmailType(type)}
+                      className={`flex flex-col items-center gap-1.5 p-2.5 rounded-xl border-2
+                                  transition-all text-xs font-semibold min-h-[64px] ${
+                        emailType === type
+                          ? 'border-sky-500 bg-sky-50 text-sky-700'
+                          : 'border-sky-100 text-sky-400 hover:border-sky-300 hover:text-sky-600'
+                      }`}>
+                      <tmpl.icon className={`w-4 h-4 ${emailType === type ? tmpl.color : ''}`} />
+                      <span className="text-center leading-tight text-[10px]">{tmpl.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Subject */}
+              <div>
+                <label className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-1 block">
+                  Subject
+                </label>
+                <input type="text" value={emailSubject}
+                  onChange={e => setEmailSubject(e.target.value)}
+                  className="w-full border-2 border-sky-200 rounded-xl px-3 py-2.5 text-sm
+                             text-sky-800 outline-none focus:border-sky-400 transition-colors" />
+              </div>
+
+              {/* Body */}
+              <div>
+                <label className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-1 block">
+                  Message
+                </label>
+                <textarea value={emailBody} onChange={e => setEmailBody(e.target.value)}
+                  rows={7}
+                  className="w-full border-2 border-sky-200 rounded-xl px-3 py-2.5 text-sm
+                             text-sky-800 outline-none focus:border-sky-400 transition-colors resize-none" />
+              </div>
+
+              <p className="text-[11px] text-sky-400 flex items-start gap-1.5">
+                <Clock className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                Sending this updates the applicant's status in the system and the result
+                appears on their application page.
+              </p>
+
+              <div className="flex gap-3 pt-1">
+                <button onClick={() => setEmailCand(null)}
+                  className="flex-1 border-2 border-sky-200 text-sky-600 font-semibold
+                             py-3 rounded-xl hover:bg-sky-50 transition-colors min-h-[48px]">
+                  Cancel
+                </button>
+                <button onClick={sendEmail} disabled={sending}
+                  className="flex-1 bg-sky-500 hover:bg-sky-600 text-white font-semibold
+                             py-3 rounded-xl transition-colors min-h-[48px]
+                             flex items-center justify-center gap-2 disabled:opacity-60">
+                  {sending
+                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent
+                                        rounded-full animate-spin" /> Sending…</>
+                    : <><Send className="w-4 h-4" /> Send Notification</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-sky-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          onClick={() => !deleting && setShowDeleteConfirm(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
+            onClick={e => e.stopPropagation()}>
+
+            <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <p className="text-white font-bold">Delete Screening Result</p>
+                <p className="text-red-100 text-xs">This action cannot be undone</p>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="bg-red-50 rounded-xl p-4 border-2 border-red-100">
+                <p className="text-red-700 font-semibold text-sm mb-1">
+                  Are you sure you want to delete the screening for:
+                </p>
+                <p className="text-red-900 font-bold text-base">{result?.jobTitle}</p>
+              </div>
+
+              <ul className="space-y-2">
+                {[
+                  'All candidate scores and rankings will be removed',
+                  'All applicants will be reset to pending status',
+                  'The job will reappear in the screening page',
+                  'You can run a fresh screening with new settings',
+                ].map((item, i) => (
+                  <li key={i} className="flex items-start gap-2 text-sky-600 text-xs">
+                    <span className="text-sky-400 flex-shrink-0 mt-0.5">•</span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 border-2 border-sky-200 text-sky-600 font-semibold
+                             py-3 rounded-xl hover:bg-sky-50 transition-colors min-h-[48px]
+                             disabled:opacity-50">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold
+                             py-3 rounded-xl transition-colors min-h-[48px]
+                             flex items-center justify-center gap-2 disabled:opacity-60">
+                  {deleting
+                    ? <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> Deleting…</>
+                    : <><Trash2 className="w-4 h-4" /> Yes, Delete It</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+    </div>
+  )
+}
