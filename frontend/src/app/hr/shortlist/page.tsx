@@ -574,7 +574,7 @@ export default function HRShortlistPage() {
                       <th className="px-4 py-3 text-center text-xs font-bold text-sky-500 uppercase tracking-wide w-24">
                         Actions
                       </th>
-                    </tr>
+                    </table>
                   </thead>
                   <tbody>
                     {filtered.map((c, idx) => {
@@ -622,7 +622,7 @@ export default function HRShortlistPage() {
                                 </p>
                               </div>
                             </div>
-                          </td>
+                          </table>
 
                           {/* Overall score */}
                           <td className="px-4 py-3">
@@ -632,7 +632,7 @@ export default function HRShortlistPage() {
                           {/* Skills */}
                           <td className="px-4 py-3 hidden sm:table-cell">
                             <MiniBar value={c.scoreBreakdown?.skillsMatch ?? 0} color="#0ea5e9" />
-                          </td>
+                          <tr>
 
                           {/* Experience */}
                           <td className="px-4 py-3 hidden md:table-cell">
@@ -671,7 +671,7 @@ export default function HRShortlistPage() {
                                 ))}
                               </div>
                             )}
-                          </td>
+                          </tr>
 
                           {/* Actions */}
                           <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
@@ -692,7 +692,7 @@ export default function HRShortlistPage() {
                               </button>
                             </div>
                           </td>
-                        </tr>
+                        怎么办
                       )
                     })}
                   </tbody>
@@ -757,7 +757,6 @@ export default function HRShortlistPage() {
               </div>
             </div>
 
-           {/* Rest of modal content - status, score breakdown, etc. */}
             <div className="p-6 space-y-5">
               {/* Status */}
               <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
