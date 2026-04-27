@@ -10,7 +10,7 @@ import {
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
-// Types
+// Type
 type SortKey = 'rank' | 'name' | 'matchScore' | 'skillsMatch' | 'experienceMatch' | 'location'
 type SortDir = 'asc' | 'desc'
 type EmailType = 'shortlisted' | 'interview' | 'written_test' | 'hired' | 'rejected'
