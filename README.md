@@ -42,7 +42,7 @@ The platform solves a critical HR bottleneck: manually reviewing dozens of CVs i
 
 **Our system is different** because it allows HR teams to choose what matters most for each hiring process, not allowes using default scoring weight. They can adjust the importance of five key areas: **skills match, experience, education, project relevance, and availability, using a 0–100 scale**.
 
-For example, if a delivery company needs a worker urgently, it can give availability 40% so candidates who can start this week get higher scores. If a university is hiring a lecturerand looking someone with High Qualification degree, it can give education 50% so candidates with a Master’s degree or PhD get higher scores.
+**For example,** if a delivery company needs a worker urgently, it can give availability 40% so candidates who can start this week get higher scores. If a university is hiring a lecturerand looking someone with High Qualification degree, it can give education 50% so candidates with a Master’s degree or PhD get higher scores.
 
 This means candidates are not judged by one generic system. Instead, they are evaluated based on the real needs and priorities of the company hiring them, **making the shortlist more accurate and fair**.
 
@@ -319,9 +319,8 @@ NEXT_PUBLIC_API_URL=http://localhost:5000/api
 │       ├── screening/
 │       │   └── page.tsx          # AI screening configuration and launch
 │       ├── shortlist/
-│       │   └── page.tsx          # Ranked results, notifications, delete
-│       └── settings/
-│           └── page.tsx          # Organization & AI settings
+│           └── page.tsx          # Ranked results, notifications, delete
+│       
 ├── src/
 │   ├── lib/
 │   │   └── api.ts                # All Axios API calls (authAPI, jobsAPI, screeningAPI…)
