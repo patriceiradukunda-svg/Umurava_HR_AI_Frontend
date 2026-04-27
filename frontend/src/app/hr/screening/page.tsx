@@ -84,12 +84,11 @@ export default function HRScreeningPage() {
     Promise.all([
       jobsAPI.list({ status: 'active' }),
       jobsAPI.list({ status: 'closed' }),
-      screeningAPI.list({ status: 'completed' }),   // ← get screened job ids
+      screeningAPI.list({ status: 'completed' }),
     ]).then(([active, closed, screenings]) => {
       const allJobs = [...(active.data.data || []), ...(closed.data.data || [])]
       setJobs(allJobs)
 
-      // Extract unique jobIds that already have a completed screening
       const screeningList = screenings.data.data || []
       const ids = [...new Set(
         screeningList.map((s: any) =>
@@ -104,6 +103,16 @@ export default function HRScreeningPage() {
   const weightTotal       = Object.values(weights).reduce((a, b) => a + b, 0)
   const applicantCount    = job?.applicantCount || 0
   const shortlistTooLarge = applicantCount > 0 && shortlistSize > applicantCount
+  const canRunScreening = !running && selectedJob && applicantCount > 0 && !shortlistTooLarge
+  
+  // Auto-adjust shortlist size when job changes
+  useEffect(() => {
+    if (job && applicantCount > 0 && shortlistSize > applicantCount) {
+      setSize(applicantCount)
+      toast(`Shortlist size adjusted to ${applicantCount} (max available)`, { icon: '⚠️' })
+    }
+  }, [job, applicantCount, shortlistSize])
+
   const resetWeights = () => setWeights({ ...DEFAULT_WEIGHTS })
   const setWeight    = (key: keyof typeof weights, val: number) =>
     setWeights(w => ({ ...w, [key]: Math.min(100, Math.max(0, val)) }))
@@ -112,7 +121,6 @@ export default function HRScreeningPage() {
   const pendingJobs  = jobs.filter(j => !screenedJobIds.includes(String(j._id)))
   const screenedJobs = jobs.filter(j =>  screenedJobIds.includes(String(j._id)))
 
-  // Apply search filter to whichever view is active
   const displayJobs = (viewMode === 'pending' ? pendingJobs : screenedJobs).filter(j => {
     const q = jobSearch.toLowerCase()
     return !q ||
@@ -123,8 +131,21 @@ export default function HRScreeningPage() {
   })
 
   const runScreening = async () => {
-    if (!selectedJob)         { toast.error('Please select a job first');      return }
-    if (!job?.applicantCount) { toast.error('This job has no applicants yet'); return }
+    if (!selectedJob) { 
+      toast.error('Please select a job first');      
+      return 
+    }
+    
+    if (!job?.applicantCount) { 
+      toast.error('This job has no applicants yet'); 
+      return 
+    }
+    
+    // CRITICAL FIX: Block screening if shortlist size exceeds applicants
+    if (shortlistSize > applicantCount) {
+      toast.error(`Cannot screen: You want to shortlist ${shortlistSize} candidates but only ${applicantCount} applicant(s) available. Please reduce the shortlist size.`)
+      return
+    }
 
     // Prevent re-screening a job that already has results without confirmation
     if (screenedJobIds.includes(selectedJob)) {
@@ -158,7 +179,6 @@ export default function HRScreeningPage() {
             setShortlistCount(s.data.shortlistCount || 0)
             setTotalEvaluated(s.data.totalEvaluated || 0)
             setHasInsights(s.data.hasInsights || false)
-            // Mark this job as screened in local state
             setScreenedJobIds(prev => [...new Set([...prev, selectedJob])])
             toast.success(`Screening complete — ${s.data.shortlistCount} candidates shortlisted!`)
           } else if (s.data.status === 'failed') {
@@ -290,7 +310,13 @@ export default function HRScreeningPage() {
                   {displayJobs.map(j => {
                     const isScreened = screenedJobIds.includes(String(j._id))
                     return (
-                      <button key={j._id} onClick={() => setSelectedJob(j._id)}
+                      <button key={j._id} onClick={() => {
+                        setSelectedJob(j._id)
+                        // Auto-adjust shortlist size when selecting a job
+                        if (j.applicantCount && shortlistSize > j.applicantCount) {
+                          setSize(j.applicantCount)
+                        }
+                      }}
                         className={`w-full text-left rounded-xl p-4 border-2 transition-all ${
                           selectedJob === j._id
                             ? 'border-sky-500 bg-sky-50'
@@ -356,7 +382,14 @@ export default function HRScreeningPage() {
                   <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-2">Quick select</p>
                   <div className="flex gap-2 flex-wrap">
                     {[5, 10, 15, 20, 30].map(n => (
-                      <button key={n} onClick={() => setSize(n)}
+                      <button key={n} onClick={() => {
+                        if (applicantCount > 0 && n > applicantCount) {
+                          toast.error(`Cannot select ${n} candidates. Only ${applicantCount} available.`)
+                          setSize(applicantCount)
+                        } else {
+                          setSize(n)
+                        }
+                      }}
                         className={`px-3 py-1.5 rounded-lg text-xs font-bold border-2 transition-all min-h-[36px] ${
                           shortlistSize === n
                             ? 'border-sky-500 bg-sky-50 text-sky-700'
@@ -425,9 +458,9 @@ export default function HRScreeningPage() {
 
           {/* Run button */}
           <button onClick={runScreening}
-            disabled={running || !selectedJob || !job?.applicantCount || shortlistTooLarge}
+            disabled={!canRunScreening}
             className={`w-full flex items-center justify-center gap-3 font-bold py-4 rounded-2xl text-base transition-all min-h-[56px] ${
-              running || !selectedJob || !job?.applicantCount
+              !canRunScreening
                 ? 'bg-sky-100 text-sky-300 cursor-not-allowed'
                 : 'bg-sky-500 hover:bg-sky-600 text-white shadow-md hover:shadow-lg active:scale-[0.99]'
             }`}>
@@ -450,13 +483,17 @@ export default function HRScreeningPage() {
               <AlertCircle className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" />
               <div>
                 <p className="text-red-700 font-bold text-sm">
-                  Shortlist size exceeds applicant count
+                  Cannot screen: Shortlist size exceeds available applicants
                 </p>
-                <p className="text-red-500 text-xs mt-0.5">
+                <p className="text-red-600 text-xs mt-0.5">
                   You want to shortlist <span className="font-bold">{shortlistSize}</span> candidates but this job only has{' '}
                   <span className="font-bold">{applicantCount}</span> applicant{applicantCount !== 1 ? 's' : ''}.
-                  Please reduce the shortlist size to <span className="font-bold">{applicantCount}</span> or fewer.
                 </p>
+                <button 
+                  onClick={() => setSize(applicantCount)}
+                  className="mt-2 text-xs font-bold text-red-700 underline hover:text-red-800">
+                  Click here to adjust shortlist size to {applicantCount}
+                </button>
               </div>
             </div>
           )}
