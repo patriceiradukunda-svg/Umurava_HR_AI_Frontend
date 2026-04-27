@@ -692,7 +692,6 @@ export default function HRShortlistPage() {
                               </button>
                             </div>
                           </td>
-                        怎么办
                       )
                     })}
                   </tbody>
