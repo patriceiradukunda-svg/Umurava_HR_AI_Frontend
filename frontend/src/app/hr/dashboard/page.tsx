@@ -594,7 +594,7 @@ export default function HRDashboardPage() {
           {/* AI-Powered Recommendations */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Powered Recommendations</p>
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">GENERAL Recommendations</p>
               {loadingAI && <Loader2 className="w-3 h-3 text-sky-400 animate-spin" />}
             </div>
             {loadingAI ? (
@@ -656,6 +656,7 @@ export default function HRDashboardPage() {
             )}
           </div>
         </div>
+      </Section>
 
         {/* Detailed Gap Analysis from AI */}
         {aiRecommendations.length > 0 && (
