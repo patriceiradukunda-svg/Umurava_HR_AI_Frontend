@@ -10,7 +10,7 @@ import {
 import Link from 'next/link'
 import toast from 'react-hot-toast'
 
-// Type
+// Types
 type SortKey = 'rank' | 'name' | 'matchScore' | 'skillsMatch' | 'experienceMatch' | 'location'
 type SortDir = 'asc' | 'desc'
 type EmailType = 'shortlisted' | 'interview' | 'written_test' | 'hired' | 'rejected'
@@ -574,7 +574,7 @@ export default function HRShortlistPage() {
                       <th className="px-4 py-3 text-center text-xs font-bold text-sky-500 uppercase tracking-wide w-24">
                         Actions
                       </th>
-                    </table>
+                    </tr>
                   </thead>
                   <tbody>
                     {filtered.map((c, idx) => {
@@ -622,7 +622,7 @@ export default function HRShortlistPage() {
                                 </p>
                               </div>
                             </div>
-                          </table>
+                          </td>
 
                           {/* Overall score */}
                           <td className="px-4 py-3">
@@ -632,7 +632,7 @@ export default function HRShortlistPage() {
                           {/* Skills */}
                           <td className="px-4 py-3 hidden sm:table-cell">
                             <MiniBar value={c.scoreBreakdown?.skillsMatch ?? 0} color="#0ea5e9" />
-                          <tr>
+                          </td>
 
                           {/* Experience */}
                           <td className="px-4 py-3 hidden md:table-cell">
@@ -671,7 +671,7 @@ export default function HRShortlistPage() {
                                 ))}
                               </div>
                             )}
-                          </tr>
+                          </td>
 
                           {/* Actions */}
                           <td className="px-4 py-3 text-center" onClick={e => e.stopPropagation()}>
@@ -692,6 +692,7 @@ export default function HRShortlistPage() {
                               </button>
                             </div>
                           </td>
+                        </tr>
                       )
                     })}
                   </tbody>
@@ -721,7 +722,6 @@ export default function HRShortlistPage() {
           <div className="bg-white rounded-2xl w-full max-w-lg max-h-[88vh]
                           overflow-y-auto shadow-2xl"
             onClick={e => e.stopPropagation()}>
-
             <div className="sticky top-0 bg-white border-b border-sky-100 px-6 py-4
                             flex items-center justify-between rounded-t-2xl z-10">
               <div className="flex items-center gap-3">
@@ -755,7 +755,6 @@ export default function HRShortlistPage() {
                 </button>
               </div>
             </div>
-
             <div className="p-6 space-y-5">
               {/* Status */}
               <div className={`flex items-start gap-3 p-4 rounded-xl border-2 ${
@@ -847,7 +846,6 @@ export default function HRShortlistPage() {
           onClick={() => setEmailCand(null)}>
           <div className="bg-white rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}>
-
             <div className="bg-gradient-to-r from-sky-500 to-sky-600 px-6 py-4
                             flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -867,7 +865,6 @@ export default function HRShortlistPage() {
                 <X className="w-5 h-5" />
               </button>
             </div>
-
             <div className="p-6 space-y-4">
               {/* Type selector */}
               <div>
@@ -945,7 +942,6 @@ export default function HRShortlistPage() {
           onClick={() => !deleting && setShowDeleteConfirm(false)}>
           <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden"
             onClick={e => e.stopPropagation()}>
-
             <div className="bg-gradient-to-r from-red-500 to-red-600 px-6 py-4 flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
                 <Trash2 className="w-5 h-5 text-white" />
@@ -955,7 +951,6 @@ export default function HRShortlistPage() {
                 <p className="text-red-100 text-xs">This action cannot be undone</p>
               </div>
             </div>
-
             <div className="p-6 space-y-4">
               <div className="bg-red-50 rounded-xl p-4 border-2 border-red-100">
                 <p className="text-red-700 font-semibold text-sm mb-1">
@@ -963,7 +958,6 @@ export default function HRShortlistPage() {
                 </p>
                 <p className="text-red-900 font-bold text-base">{result?.jobTitle}</p>
               </div>
-
               <ul className="space-y-2">
                 {[
                   'All candidate scores and rankings will be removed',
@@ -977,7 +971,6 @@ export default function HRShortlistPage() {
                   </li>
                 ))}
               </ul>
-
               <div className="flex gap-3 pt-1">
                 <button
                   onClick={() => setShowDeleteConfirm(false)}
