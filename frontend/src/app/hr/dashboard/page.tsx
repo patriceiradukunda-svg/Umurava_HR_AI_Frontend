@@ -562,39 +562,7 @@ export default function HRDashboardPage() {
           </div>
         </div>
 
-        {/* Detailed Gap Analysis from AI - REAL GEMINI INSIGHTS */}
-        {skillGapInsights.length > 0 && (
-          <div className="px-5 pb-5">
-            <div className="flex items-center gap-2 mb-3">
-              <Brain className="w-4 h-4 text-sky-500" />
-              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Generated Detailed Analysis</p>
-            </div>
-            <div className="grid md:grid-cols-2 gap-3">
-              {skillGapInsights.slice(0, 6).map((item: any, i: number) => (
-                <div key={i} className={`rounded-xl p-4 border-2 ${
-                  item.severity === 'critical' ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200' :
-                  item.severity === 'moderate' ? 'bg-gradient-to-r from-amber-50 to-amber-50/30 border-amber-200' :
-                  'bg-gradient-to-r from-sky-50 to-sky-50/30 border-sky-200'
-                }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-bold text-sky-800 text-sm">{item.skill}</p>
-                    <div className="flex items-center gap-1">
-                      <Target className="w-3 h-3 text-sky-400" />
-                      <span className="text-xs text-sky-500">{item.coverage}% coverage</span>
-                    </div>
-                  </div>
-                  <p className="text-sky-600 text-sm leading-relaxed mb-3">{item.recommendation}</p>
-                  {item.jobTitle && (
-                    <div className="flex items-center gap-2 text-[10px] text-sky-400 border-t border-sky-100 pt-2 mt-1">
-                      <span>Based on analysis of: {item.jobTitle}</span>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
+        
         {/* Hiring Recommendations from AI */}
         {hiringRecs.length > 0 && (
           <div className="px-5 pb-5">
