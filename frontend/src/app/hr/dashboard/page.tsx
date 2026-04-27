@@ -22,6 +22,14 @@ interface Stats {
   shortlisted: number; shortlistRate: number; screeningRuns: number
 }
 
+interface AIInsight {
+  skill: string;
+  coverage: number;
+  severity: string;
+  recommendation: string;
+  jobTitle?: string;
+}
+
 // Constants
 const SCORE_COLORS = ['#ef4444','#f59e0b','#38bdf8','#0284c7','#10b981','#6366f1']
 const STATUS_COLORS: Record<string, string> = {
@@ -111,8 +119,6 @@ export default function HRDashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
-  const [aiRecommendations, setAiRecommendations] = useState<any[]>([])
-  const [loadingAI, setLoadingAI] = useState(false)
 
   // Date range state
   const [activeRange, setActiveRange] = useState('7 days')
@@ -148,7 +154,7 @@ export default function HRDashboardPage() {
     finally { setLoading(false); setRefreshing(false) }
   }, [])
 
-  // Fetch analytics
+  // Fetch analytics (includes REAL AI insights from backend)
   const fetchAnalytics = useCallback(async (days: string, jobId: string, dept: string) => {
     try {
       const params: Record<string, string> = {}
@@ -160,94 +166,11 @@ export default function HRDashboardPage() {
     } catch {}
   }, [])
 
-  // Fetch AI recommendations from screening data
-  const fetchAIRecommendations = useCallback(async (jobId: string, dept: string) => {
-    setLoadingAI(true)
-    try {
-      const screeningsRes = await screeningAPI.list({ status: 'completed' })
-      const screenings = screeningsRes.data.data || []
-      
-      if (screenings.length === 0) {
-        setAiRecommendations([])
-        return
-      }
-
-      let filteredScreenings = screenings
-      if (jobId !== 'all') {
-        filteredScreenings = screenings.filter((s: any) => {
-          const sJobId = typeof s.jobId === 'object' ? s.jobId._id : s.jobId
-          return String(sJobId) === jobId
-        })
-      }
-
-      if (filteredScreenings.length === 0 && jobId !== 'all') {
-        filteredScreenings = screenings
-      }
-
-      const allSkillGaps: any[] = []
-      const allStrengths: any[] = []
-      
-      for (const screening of filteredScreenings.slice(0, 5)) {
-        if (screening.shortlist && Array.isArray(screening.shortlist)) {
-          for (const candidate of screening.shortlist) {
-            if (candidate.gaps && Array.isArray(candidate.gaps)) {
-              allSkillGaps.push(...candidate.gaps)
-            }
-            if (candidate.strengths && Array.isArray(candidate.strengths)) {
-              allStrengths.push(...candidate.strengths)
-            }
-          }
-        }
-      }
-
-      const gapFrequency = new Map()
-      allSkillGaps.forEach(gap => {
-        gapFrequency.set(gap, (gapFrequency.get(gap) || 0) + 1)
-      })
-
-      const topGaps = Array.from(gapFrequency.entries())
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([gap, count]) => ({
-          skill: gap,
-          frequency: count,
-          severity: count > 5 ? 'critical' : count > 2 ? 'moderate' : 'low',
-          recommendation: generateRecommendation(gap, count, allStrengths.length)
-        }))
-
-      setAiRecommendations(topGaps)
-    } catch (error) {
-      console.error('Failed to fetch AI recommendations:', error)
-      setAiRecommendations([])
-    } finally {
-      setLoadingAI(false)
-    }
-  }, [])
-
-  const generateRecommendation = (gap: string, frequency: number, totalCandidates: number): string => {
-    const percentage = ((frequency / (totalCandidates || 1)) * 100).toFixed(0)
-    
-    if (frequency > 5) {
-      return `Critical skill gap detected: ${gap} missing in ${percentage}% of candidates. Consider training programs, hiring for this skill, or adjusting job requirements.`
-    } else if (frequency > 2) {
-      return `Moderate gap: ${gap} needs improvement in ${percentage}% of candidates. Include this in technical assessments and interview questions.`
-    } else {
-      return `${gap} gap affects few candidates. Consider targeted upskilling for specific individuals.`
-    }
-  }
-
   // Initial load
   useEffect(() => {
     fetchDash(activeDays)
     fetchAnalytics(activeDays, aJobFilter, aDeptFilter)
   }, [])
-
-  // Fetch AI recommendations when filters change
-  useEffect(() => {
-    if (aJobFilter || aDeptFilter) {
-      fetchAIRecommendations(aJobFilter, aDeptFilter)
-    }
-  }, [aJobFilter, aDeptFilter, fetchAIRecommendations])
 
   const selectRange = (label: string, days: string) => {
     setActiveRange(label)
@@ -270,7 +193,6 @@ export default function HRDashboardPage() {
 
   const applyAnalyticsFilters = () => {
     fetchAnalytics(activeDays, aJobFilter, aDeptFilter)
-    fetchAIRecommendations(aJobFilter, aDeptFilter)
   }
 
   if (loading) return (
@@ -288,8 +210,9 @@ export default function HRDashboardPage() {
   const summary            = analytics?.summary           || {}
   const scoreDistribution  = analytics?.scoreDistribution || []
   const topSkillGaps       = analytics?.topSkillGaps      || []
-  const marketRecs         = analytics?.marketRecommendations || []
-  const hiringRecs         = analytics?.hiringRecommendations || []
+  const skillGapInsights   = analytics?.skillGapInsights  || [] // REAL AI insights from backend!
+  const marketRecs         = analytics?.marketRecommendations || [] // REAL AI recommendations!
+  const hiringRecs         = analytics?.hiringRecommendations || [] // REAL AI hiring advice!
   const topCandidates      = analytics?.topCandidates     || []
   const trendData          = analytics?.trendData         || []
 
@@ -541,8 +464,8 @@ export default function HRDashboardPage() {
         )}
       </Section>
 
-      {/* Skills Gap Analysis & AI Recommendations */}
-      <Section title="Skills Gap Analysis & AI Recommendations" icon={AlertTriangle} badge={aiRecommendations.length || topSkillGaps.length} defaultOpen>
+      {/* Skills Gap Analysis & AI Recommendations - NOW USING REAL AI DATA! */}
+      <Section title="Skills Gap Analysis & AI Recommendations" icon={AlertTriangle} badge={skillGapInsights.length || topSkillGaps.length} defaultOpen>
         <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-100 flex-wrap bg-sky-50/40">
           <Filter className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
           <select value={aJobFilter} onChange={e => setAJobFilter(e.target.value)}
@@ -591,29 +514,20 @@ export default function HRDashboardPage() {
             )}
           </div>
 
-          {/* AI-Powered Recommendations */}
+          {/* AI-Powered Recommendations - REAL DATA FROM GEMINI! */}
           <div>
             <div className="flex items-center justify-between mb-4">
-              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">GENERAL Recommendations</p>
-              {loadingAI && <Loader2 className="w-3 h-3 text-sky-400 animate-spin" />}
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Powered Recommendations</p>
+              <Brain className="w-3.5 h-3.5 text-sky-500" />
             </div>
-            {loadingAI ? (
-              <div className="py-10 text-center">
-                <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                <p className="text-sky-400 text-xs">Analyzing candidate data...</p>
-              </div>
-            ) : aiRecommendations.length === 0 && topSkillGaps.length === 0 ? (
+            {skillGapInsights.length === 0 && marketRecs.length === 0 ? (
               <div className="py-10 text-center">
                 <p className="text-sky-300 text-sm">Run screenings to generate AI recommendations.</p>
               </div>
             ) : (
               <div className="space-y-3">
-                {(aiRecommendations.length > 0 ? aiRecommendations : topSkillGaps.slice(0, 5).map((gap: any, i: number) => ({
-                  skill: gap.name,
-                  frequency: Math.floor(Math.random() * 10) + 1,
-                  severity: gap.coverageRate < 40 ? 'critical' : gap.coverageRate < 70 ? 'moderate' : 'low',
-                  recommendation: `${gap.name} coverage is at ${gap.coverageRate}%. Consider targeted training or adjust job requirements to attract candidates with this skill.`
-                }))).map((item: any, i: number) => (
+                {/* Show real AI recommendations from Gemini */}
+                {(skillGapInsights.length > 0 ? skillGapInsights.slice(0, 5) : []).map((item: any, i: number) => (
                   <div key={i} className={`rounded-xl p-4 border-2 transition-all ${
                     item.severity === 'critical' 
                       ? 'bg-red-50 border-red-200 hover:shadow-md' 
@@ -634,17 +548,8 @@ export default function HRDashboardPage() {
                         item.severity === 'moderate' ? 'bg-amber-100 text-amber-700' :
                         'bg-sky-100 text-sky-600'
                       }`}>
-                        {item.severity} gap
+                        {item.severity} gap ({item.coverage}% covered)
                       </span>
-                    </div>
-                    <div className="flex items-center gap-2 mb-3">
-                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full transition-all duration-500" style={{
-                          width: `${Math.max(0, 100 - (item.frequency * 10))}%`,
-                          background: item.severity === 'critical' ? '#ef4444' : item.severity === 'moderate' ? '#f59e0b' : '#0ea5e9',
-                        }} />
-                      </div>
-                      <span className="text-xs font-mono text-sky-500">{item.frequency} candidates affected</span>
                     </div>
                     <div className="flex items-start gap-2">
                       <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
@@ -656,17 +561,16 @@ export default function HRDashboardPage() {
             )}
           </div>
         </div>
-      </Section>
 
-        {/* Detailed Gap Analysis from AI */}
-        {aiRecommendations.length > 0 && (
+        {/* Detailed Gap Analysis from AI - REAL GEMINI INSIGHTS */}
+        {skillGapInsights.length > 0 && (
           <div className="px-5 pb-5">
             <div className="flex items-center gap-2 mb-3">
               <Brain className="w-4 h-4 text-sky-500" />
               <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Generated Detailed Analysis</p>
             </div>
             <div className="grid md:grid-cols-2 gap-3">
-              {aiRecommendations.map((item: any, i: number) => (
+              {skillGapInsights.slice(0, 6).map((item: any, i: number) => (
                 <div key={i} className={`rounded-xl p-4 border-2 ${
                   item.severity === 'critical' ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200' :
                   item.severity === 'moderate' ? 'bg-gradient-to-r from-amber-50 to-amber-50/30 border-amber-200' :
@@ -675,15 +579,33 @@ export default function HRDashboardPage() {
                   <div className="flex items-center justify-between mb-2">
                     <p className="font-bold text-sky-800 text-sm">{item.skill}</p>
                     <div className="flex items-center gap-1">
-                      <Activity className="w-3 h-3 text-sky-400" />
-                      <span className="text-xs text-sky-500">{item.frequency} occurrences</span>
+                      <Target className="w-3 h-3 text-sky-400" />
+                      <span className="text-xs text-sky-500">{item.coverage}% coverage</span>
                     </div>
                   </div>
                   <p className="text-sky-600 text-sm leading-relaxed mb-3">{item.recommendation}</p>
-                  <div className="flex items-center gap-2 text-[10px] text-sky-400 border-t border-sky-100 pt-2 mt-1">
-                    <span>Based on analysis of recent screening data</span>
-                    <Target className="w-3 h-3" />
-                  </div>
+                  {item.jobTitle && (
+                    <div className="flex items-center gap-2 text-[10px] text-sky-400 border-t border-sky-100 pt-2 mt-1">
+                      <span>Based on analysis of: {item.jobTitle}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Hiring Recommendations from AI */}
+        {hiringRecs.length > 0 && (
+          <div className="px-5 pb-5">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="w-4 h-4 text-sky-500" />
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">Strategic Hiring Recommendations</p>
+            </div>
+            <div className="space-y-2">
+              {hiringRecs.map((rec: string, i: number) => (
+                <div key={i} className="bg-indigo-50 rounded-xl p-3 border border-indigo-100">
+                  <p className="text-indigo-800 text-sm leading-relaxed">{rec}</p>
                 </div>
               ))}
             </div>
