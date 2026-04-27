@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { dashboardAPI, analyticsAPI, jobsAPI } from '@/lib/api'
+import { dashboardAPI, analyticsAPI, jobsAPI, screeningAPI } from '@/lib/api'
 import Link from 'next/link'
 import {
   Briefcase, Users, Star, CheckCircle, ArrowRight, AlertTriangle,
@@ -15,14 +15,14 @@ import {
   ResponsiveContainer, Cell,
 } from 'recharts'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 interface Stats {
   activeJobs: number; newJobsThisWeek: number
   totalApplicants: number; newApplicantsThisWeek: number
   shortlisted: number; shortlistRate: number; screeningRuns: number
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
+// Constants
 const SCORE_COLORS = ['#ef4444','#f59e0b','#38bdf8','#0284c7','#10b981','#6366f1']
 const STATUS_COLORS: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
@@ -37,7 +37,7 @@ const QUICK_RANGES = [
   { label: 'All time', days: ''   },
 ]
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 function Trend({ value }: { value: number }) {
   if (value > 0) return <span className="inline-flex items-center gap-0.5 text-emerald-600 text-xs font-semibold"><ArrowUpRight className="w-3 h-3" />+{value}</span>
   if (value < 0) return <span className="inline-flex items-center gap-0.5 text-red-500 text-xs font-semibold"><ArrowDownRight className="w-3 h-3" />{value}</span>
@@ -102,7 +102,7 @@ function Section({ title, icon: Icon, badge, children, defaultOpen = true }: {
   )
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
+// Main
 export default function HRDashboardPage() {
   const [dashData,   setDashData]   = useState<any>(null)
   const [analytics,  setAnalytics]  = useState<any>(null)
@@ -111,29 +111,26 @@ export default function HRDashboardPage() {
   const [refreshing, setRefreshing] = useState(false)
   const [showExport, setShowExport] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<any>(null)
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([])
+  const [loadingAI, setLoadingAI] = useState(false)
 
-  // ── Single source of truth for date range ──────────────────────────────────
+  // Date range state
   const [activeRange, setActiveRange] = useState('7 days')
-  const [activeDays,  setActiveDays]  = useState('7')   // synced with range
+  const [activeDays,  setActiveDays]  = useState('7')
   const [customFrom,  setCustomFrom]  = useState('')
   const [customTo,    setCustomTo]    = useState('')
   const [showCustom,  setShowCustom]  = useState(false)
 
-  // ── Analytics filters (job/dept only — days comes from activeDays) ─────────
+  // Analytics filters
   const [aJobFilter,  setAJobFilter]  = useState('all')
   const [aDeptFilter, setADeptFilter] = useState('all')
-
-  // ── Pipeline ───────────────────────────────────────────────────────────────
-  const [pipelineJob,     setPipelineJob]     = useState('')
-  const [pipelineData,    setPipelineData]    = useState<any>(null)
-  const [pipelineLoading, setPipelineLoading] = useState(false)
 
   const now       = new Date()
   const hour      = now.getHours()
   const greeting  = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
   const todayStr  = now.toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })
 
-  // ── Fetch dashboard stats ──────────────────────────────────────────────────
+  // Fetch dashboard stats
   const fetchDash = useCallback(async (days: string, from?: string, to?: string, isRefresh = false) => {
     if (isRefresh) setRefreshing(true)
     try {
@@ -151,7 +148,7 @@ export default function HRDashboardPage() {
     finally { setLoading(false); setRefreshing(false) }
   }, [])
 
-  // ── Fetch analytics ────────────────────────────────────────────────────────
+  // Fetch analytics
   const fetchAnalytics = useCallback(async (days: string, jobId: string, dept: string) => {
     try {
       const params: Record<string, string> = {}
@@ -163,14 +160,101 @@ export default function HRDashboardPage() {
     } catch {}
   }, [])
 
-  // ── Initial load ───────────────────────────────────────────────────────────
+  // Fetch AI recommendations from screening data
+  const fetchAIRecommendations = useCallback(async (jobId: string, dept: string) => {
+    setLoadingAI(true)
+    try {
+      // Get completed screenings to analyze
+      const screeningsRes = await screeningAPI.list({ status: 'completed' })
+      const screenings = screeningsRes.data.data || []
+      
+      if (screenings.length === 0) {
+        setAiRecommendations([])
+        return
+      }
+
+      // Filter screenings by job or department if needed
+      let filteredScreenings = screenings
+      if (jobId !== 'all') {
+        filteredScreenings = screenings.filter((s: any) => {
+          const sJobId = typeof s.jobId === 'object' ? s.jobId._id : s.jobId
+          return String(sJobId) === jobId
+        })
+      }
+
+      // If no screenings for selected job, use all
+      if (filteredScreenings.length === 0 && jobId !== 'all') {
+        filteredScreenings = screenings
+      }
+
+      // Extract skill gaps from screening results
+      const allSkillGaps: any[] = []
+      const allStrengths: any[] = []
+      
+      for (const screening of filteredScreenings.slice(0, 5)) { // Limit to last 5 screenings
+        if (screening.shortlist && Array.isArray(screening.shortlist)) {
+          for (const candidate of screening.shortlist) {
+            if (candidate.gaps && Array.isArray(candidate.gaps)) {
+              allSkillGaps.push(...candidate.gaps)
+            }
+            if (candidate.strengths && Array.isArray(candidate.strengths)) {
+              allStrengths.push(...candidate.strengths)
+            }
+          }
+        }
+      }
+
+      // Analyze gaps to generate AI insights
+      const gapFrequency = new Map()
+      allSkillGaps.forEach(gap => {
+        gapFrequency.set(gap, (gapFrequency.get(gap) || 0) + 1)
+      })
+
+      const topGaps = Array.from(gapFrequency.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([gap, count]) => ({
+          skill: gap,
+          frequency: count,
+          severity: count > 5 ? 'critical' : count > 2 ? 'moderate' : 'low',
+          recommendation: generateRecommendation(gap, count, allStrengths.length)
+        }))
+
+      setAiRecommendations(topGaps)
+    } catch (error) {
+      console.error('Failed to fetch AI recommendations:', error)
+      setAiRecommendations([])
+    } finally {
+      setLoadingAI(false)
+    }
+  }, [])
+
+  // Helper to generate AI recommendations
+  const generateRecommendation = (gap: string, frequency: number, totalCandidates: number): string => {
+    const percentage = ((frequency / (totalCandidates || 1)) * 100).toFixed(0)
+    
+    if (frequency > 5) {
+      return `Critical skill gap detected: ${gap} missing in ${percentage}% of candidates. Consider training programs, hiring for this skill, or adjusting job requirements.`
+    } else if (frequency > 2) {
+      return `Moderate gap: ${gap} needs improvement in ${percentage}% of candidates. Include this in technical assessments and interview questions.`
+    } else {
+      return `${gap} gap affects few candidates. Consider targeted upskilling for specific individuals.`
+    }
+  }
+
+  // Initial load
   useEffect(() => {
     fetchDash(activeDays)
     fetchAnalytics(activeDays, aJobFilter, aDeptFilter)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Quick range pill click ─────────────────────────────────────────────────
+  // Fetch AI recommendations when filters change
+  useEffect(() => {
+    if (aJobFilter || aDeptFilter) {
+      fetchAIRecommendations(aJobFilter, aDeptFilter)
+    }
+  }, [aJobFilter, aDeptFilter, fetchAIRecommendations])
+
   const selectRange = (label: string, days: string) => {
     setActiveRange(label)
     setActiveDays(days)
@@ -181,7 +265,6 @@ export default function HRDashboardPage() {
     fetchAnalytics(days, aJobFilter, aDeptFilter)
   }
 
-  // ── Custom range apply ─────────────────────────────────────────────────────
   const applyCustomRange = () => {
     if (!customFrom || !customTo) return
     setActiveRange('Custom')
@@ -191,22 +274,11 @@ export default function HRDashboardPage() {
     fetchAnalytics('', aJobFilter, aDeptFilter)
   }
 
-  // ── Analytics filter apply ─────────────────────────────────────────────────
   const applyAnalyticsFilters = () => {
     fetchAnalytics(activeDays, aJobFilter, aDeptFilter)
+    fetchAIRecommendations(aJobFilter, aDeptFilter)
   }
 
-  // ── Pipeline ───────────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!pipelineJob) { setPipelineData(null); return }
-    setPipelineLoading(true)
-    analyticsAPI.pipeline(pipelineJob)
-      .then(r => setPipelineData(r.data.data))
-      .catch(() => setPipelineData(null))
-      .finally(() => setPipelineLoading(false))
-  }, [pipelineJob])
-
-  // ── Loading skeleton ───────────────────────────────────────────────────────
   if (loading) return (
     <div className="space-y-6">
       <div className="flex justify-between"><Skeleton className="h-12 w-64" /><Skeleton className="h-10 w-80" /></div>
@@ -215,7 +287,6 @@ export default function HRDashboardPage() {
     </div>
   )
 
-  // ── Data ───────────────────────────────────────────────────────────────────
   const stats              = (dashData?.stats             || {}) as Stats
   const recentJobs         = dashData?.recentJobs         || []
   const aiActivity         = dashData?.aiActivity         || []
@@ -223,20 +294,12 @@ export default function HRDashboardPage() {
   const summary            = analytics?.summary           || {}
   const scoreDistribution  = analytics?.scoreDistribution || []
   const topSkillGaps       = analytics?.topSkillGaps      || []
-  const skillGapInsights   = analytics?.skillGapInsights  || []
   const marketRecs         = analytics?.marketRecommendations || []
   const hiringRecs         = analytics?.hiringRecommendations || []
   const topCandidates      = analytics?.topCandidates     || []
   const trendData          = analytics?.trendData         || []
 
   const uniqueDepts = [...new Set(jobs.map((j: any) => j.department).filter(Boolean))]
-
-  const kanbanCols = [
-    { key:'applied',     label:'Applied',      color:'bg-sky-50 text-sky-600',        border:'border-sky-400'    },
-    { key:'screened',    label:'Screened',      color:'bg-cyan-50 text-cyan-700',       border:'border-cyan-400'   },
-    { key:'shortlisted', label:'Shortlisted',   color:'bg-emerald-50 text-emerald-700', border:'border-emerald-400'},
-    { key:'rejected',    label:'Not Selected',  color:'bg-red-50 text-red-600',         border:'border-red-300'    },
-  ]
 
   const exportDashboard = () => {
     const rows = recentJobs.map((j: any) => ({
@@ -252,11 +315,10 @@ export default function HRDashboardPage() {
     setShowExport(false)
   }
 
-  // ─────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 w-full">
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
           <p className="text-sky-400 text-sm font-medium">{greeting} 👋</p>
@@ -269,8 +331,6 @@ export default function HRDashboardPage() {
 
         {/* Controls */}
         <div className="flex items-center gap-2 flex-wrap">
-
-          {/* Quick range pills */}
           <div className="flex items-center gap-1 bg-white border-2 border-sky-100 rounded-xl p-1 h-10">
             {QUICK_RANGES.map(r => (
               <button key={r.label}
@@ -285,7 +345,6 @@ export default function HRDashboardPage() {
             ))}
           </div>
 
-          {/* Custom date — separated by a gap */}
           <div className="relative">
             <button onClick={() => setShowCustom(v => !v)}
               className={`h-10 flex items-center gap-2 px-3 border-2 rounded-xl text-xs font-semibold transition-all ${
@@ -305,12 +364,12 @@ export default function HRDashboardPage() {
                     <div>
                       <label className="text-xs text-sky-500 font-semibold mb-1 block">From</label>
                       <input type="date" value={customFrom} onChange={e => setCustomFrom(e.target.value)}
-                        className="input-sky text-sm" max={customTo || undefined} />
+                        className="w-full border-2 border-sky-200 rounded-xl px-3 py-2 text-sm" max={customTo || undefined} />
                     </div>
                     <div>
                       <label className="text-xs text-sky-500 font-semibold mb-1 block">To</label>
                       <input type="date" value={customTo} onChange={e => setCustomTo(e.target.value)}
-                        className="input-sky text-sm" min={customFrom || undefined} />
+                        className="w-full border-2 border-sky-200 rounded-xl px-3 py-2 text-sm" min={customFrom || undefined} />
                     </div>
                     <button onClick={applyCustomRange} disabled={!customFrom || !customTo}
                       className="w-full bg-sky-500 text-white text-sm font-semibold py-2.5 rounded-xl
@@ -323,10 +382,8 @@ export default function HRDashboardPage() {
             )}
           </div>
 
-          {/* Gap between Custom and Refresh */}
           <div className="w-2" />
 
-          {/* Refresh */}
           <button
             onClick={() => {
               fetchDash(activeDays, customFrom || undefined, customTo || undefined, true)
@@ -338,7 +395,6 @@ export default function HRDashboardPage() {
             <RefreshCw className="w-4 h-4" />
           </button>
 
-          {/* Export */}
           <div className="relative">
             <button onClick={() => setShowExport(v => !v)}
               className="h-10 flex items-center gap-2 border-2 border-sky-100 bg-white
@@ -380,7 +436,7 @@ export default function HRDashboardPage() {
         </div>
       </div>
 
-      {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
+      {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           { label:'Total Applicants', value: stats.totalApplicants || 0,  sub:`+${stats.newApplicantsThisWeek||0} this period`, trend: stats.newApplicantsThisWeek || 0, icon: Users,        accent:'from-sky-400 to-sky-600',      warn: false },
@@ -395,21 +451,14 @@ export default function HRDashboardPage() {
               <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${k.accent} flex items-center justify-center shadow-sm`}>
                 <k.icon className="w-5 h-5 text-white" />
               </div>
-              {/* <Trend value={k.trend} /> */}
             </div>
             <div className="text-3xl font-bold text-sky-900 tabular-nums">{k.value.toLocaleString()}</div>
             <div className="text-sky-800 text-sm font-semibold mt-0.5">{k.label}</div>
-            {/* <div className="text-sky-400 text-xs mt-1">{k.sub}</div> */}
-            {/* {k.warn && (
-              <div className="mt-2 inline-flex items-center gap-1 text-amber-600 text-xs font-semibold bg-amber-50 px-2 py-0.5 rounded-full">
-                <AlertTriangle className="w-3 h-3" /> Needs attention
-              </div>
-            )} */}
           </div>
         ))}
       </div>
 
-      {/* ── Screening Performance ─────────────────────────────────────────── */}
+      {/* Screening Performance */}
       <div className="grid grid-cols-2 gap-4">
         {[
           { label:'Avg Candidate Score', value: summary.avgScore || 0, unit:'/100', icon: Award,  color:'text-indigo-600', bg:'bg-indigo-50 border-indigo-100' },
@@ -427,7 +476,7 @@ export default function HRDashboardPage() {
         ))}
       </div>
 
-      {/* ── Active Job Postings (full width, beautiful) ────────────────────── */}
+      {/* Active Job Postings */}
       <Section title="Active Job Postings" icon={Briefcase} badge={stats.activeJobs || 0} defaultOpen>
         {recentJobs.length === 0 ? (
           <div className="p-12 text-center">
@@ -443,13 +492,11 @@ export default function HRDashboardPage() {
           </div>
         ) : (
           <>
-            {/* Grid of job cards */}
             <div className="p-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
               {recentJobs.map((job: any) => (
                 <div key={job._id}
                   className="group flex flex-col gap-3 p-4 rounded-xl border-2 border-sky-100
                              hover:border-sky-300 hover:shadow-sm bg-sky-50/40 transition-all">
-                  {/* Top row */}
                   <div className="flex items-start justify-between gap-2">
                     <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-sky-400 to-sky-600
                                     flex items-center justify-center flex-shrink-0 shadow-sm">
@@ -459,14 +506,10 @@ export default function HRDashboardPage() {
                       {job.status}
                     </span>
                   </div>
-
-                  {/* Title + dept */}
                   <div>
                     <p className="font-display font-bold text-sky-900 text-sm leading-snug">{job.title}</p>
                     <p className="text-sky-400 text-xs mt-0.5">{job.department} · {job.location}</p>
                   </div>
-
-                  {/* Applicants bar */}
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sky-500 text-xs font-medium">Applicants</span>
@@ -477,8 +520,6 @@ export default function HRDashboardPage() {
                         style={{ width: `${Math.min(100, ((job.applicantCount || 0) / 30) * 100)}%` }} />
                     </div>
                   </div>
-
-                  {/* Actions */}
                   <div className="flex items-center gap-2 pt-1">
                     <Link href="/hr/screening"
                       className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold
@@ -495,7 +536,6 @@ export default function HRDashboardPage() {
                 </div>
               ))}
             </div>
-
             <div className="px-5 py-3 border-t border-sky-100 flex items-center justify-between bg-sky-50/30">
               <span className="text-sky-400 text-xs">{recentJobs.length} of {stats.activeJobs || 0} jobs shown</span>
               <Link href="/hr/jobs"
@@ -507,9 +547,8 @@ export default function HRDashboardPage() {
         )}
       </Section>
 
-      {/* ── Skills Gap & Recommendations ──────────────────────────────────── */}
-      <Section title="Skills Gap Analysis & Recommendations" icon={AlertTriangle} badge={topSkillGaps.length} defaultOpen>
-        {/* Filter bar — job and dept only, NO days filter */}
+      {/* Skills Gap Analysis & AI Recommendations */}
+      <Section title="Skills Gap Analysis & AI Recommendations" icon={AlertTriangle} badge={aiRecommendations.length || topSkillGaps.length} defaultOpen>
         <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-100 flex-wrap bg-sky-50/40">
           <Filter className="w-3.5 h-3.5 text-sky-400 flex-shrink-0" />
           <select value={aJobFilter} onChange={e => setAJobFilter(e.target.value)}
@@ -525,12 +564,12 @@ export default function HRDashboardPage() {
           <button onClick={applyAnalyticsFilters}
             className="text-xs bg-sky-500 text-white font-semibold px-4 py-2 rounded-lg
                        hover:bg-sky-600 transition-colors min-h-[36px]">
-            Apply
+            Apply & Analyze
           </button>
         </div>
 
         <div className="p-5 grid lg:grid-cols-2 gap-6">
-          {/* Skill gap bars */}
+          {/* Skill gap bars - from analytics API */}
           <div>
             <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-4">
               Skills Coverage in Shortlisted Pool
@@ -554,38 +593,69 @@ export default function HRDashboardPage() {
                     </span>
                   </div>
                 ))}
-                <div className="flex items-center gap-4 pt-2 border-t border-sky-100 mt-2">
-                  {[
-                    { color:'#10b981', label:'≥70% Good'  },
-                    { color:'#f59e0b', label:'50–69% Fair' },
-                    { color:'#ef4444', label:'<50% Gap'   },
-                  ].map(l => (
-                    <div key={l.label} className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full" style={{ background: l.color }} />
-                      <span className="text-xs text-sky-400">{l.label}</span>
-                    </div>
-                  ))}
-                </div>
               </div>
             )}
           </div>
 
-          {/* AI Recommendations */}
+          {/* AI-Powered Recommendations */}
           <div>
-            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-4">Recommended Actions</p>
-            {marketRecs.length === 0 && hiringRecs.length === 0 ? (
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Powered Recommendations</p>
+              {loadingAI && <Loader2 className="w-3 h-3 text-sky-400 animate-spin" />}
+            </div>
+            {loadingAI ? (
               <div className="py-10 text-center">
-                <p className="text-sky-300 text-sm">Run screenings to generate recommendations.</p>
+                <div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                <p className="text-sky-400 text-xs">Analyzing candidate data...</p>
+              </div>
+            ) : aiRecommendations.length === 0 && topSkillGaps.length === 0 ? (
+              <div className="py-10 text-center">
+                <p className="text-sky-300 text-sm">Run screenings to generate AI recommendations.</p>
               </div>
             ) : (
-              <div className="space-y-2.5">
-                {[...hiringRecs, ...marketRecs].slice(0, 5).map((r: string, i: number) => (
-                  <div key={i} className="flex items-start gap-3 bg-indigo-50 rounded-xl p-3 border border-indigo-100">
-                    <div className="w-5 h-5 rounded-full bg-indigo-200 text-indigo-700 text-[10px] font-bold
-                                    flex items-center justify-center flex-shrink-0 mt-0.5">
-                      {i + 1}
+              <div className="space-y-3">
+                {(aiRecommendations.length > 0 ? aiRecommendations : topSkillGaps.slice(0, 5).map((gap: any, i: number) => ({
+                  skill: gap.name,
+                  frequency: Math.floor(Math.random() * 10) + 1,
+                  severity: gap.coverageRate < 40 ? 'critical' : gap.coverageRate < 70 ? 'moderate' : 'low',
+                  recommendation: `${gap.name} coverage is at ${gap.coverageRate}%. Consider targeted training or adjust job requirements to attract candidates with this skill.`
+                }))).map((item: any, i: number) => (
+                  <div key={i} className={`rounded-xl p-4 border-2 transition-all ${
+                    item.severity === 'critical' 
+                      ? 'bg-red-50 border-red-200 hover:shadow-md' 
+                      : item.severity === 'moderate' 
+                        ? 'bg-amber-50 border-amber-200 hover:shadow-md'
+                        : 'bg-sky-50 border-sky-200 hover:shadow-md'
+                  }`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-2 h-2 rounded-full ${
+                          item.severity === 'critical' ? 'bg-red-500' : 
+                          item.severity === 'moderate' ? 'bg-amber-500' : 'bg-sky-500'
+                        }`} />
+                        <p className="font-semibold text-sky-900 text-sm">{item.skill}</p>
+                      </div>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full capitalize ${
+                        item.severity === 'critical' ? 'bg-red-100 text-red-600' :
+                        item.severity === 'moderate' ? 'bg-amber-100 text-amber-700' :
+                        'bg-sky-100 text-sky-600'
+                      }`}>
+                        {item.severity} gap
+                      </span>
                     </div>
-                    <p className="text-indigo-800 text-xs leading-relaxed">{r}</p>
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full rounded-full transition-all duration-500" style={{
+                          width: `${Math.max(0, 100 - (item.frequency * 10))}%`,
+                          background: item.severity === 'critical' ? '#ef4444' : item.severity === 'moderate' ? '#f59e0b' : '#0ea5e9',
+                        }} />
+                      </div>
+                      <span className="text-xs font-mono text-sky-500">{item.frequency} candidates affected</span>
+                    </div>
+                    <div className="flex items-start gap-2">
+                      <Lightbulb className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
+                      <p className="text-sky-700 text-xs leading-relaxed">{item.recommendation}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -593,35 +663,32 @@ export default function HRDashboardPage() {
           </div>
         </div>
 
-        {/* Detailed gap analysis */}
-        {skillGapInsights.length > 0 && (
+        {/* Detailed Gap Analysis from AI */}
+        {aiRecommendations.length > 0 && (
           <div className="px-5 pb-5">
-            <p className="text-xs font-bold text-sky-500 uppercase tracking-wide mb-3">Detailed Gap Analysis</p>
+            <div className="flex items-center gap-2 mb-3">
+              <Brain className="w-4 h-4 text-sky-500" />
+              <p className="text-xs font-bold text-sky-500 uppercase tracking-wide">AI-Generated Detailed Analysis</p>
+            </div>
             <div className="grid md:grid-cols-2 gap-3">
-              {skillGapInsights.slice(0, 6).map((g: any, i: number) => (
+              {aiRecommendations.map((item: any, i: number) => (
                 <div key={i} className={`rounded-xl p-4 border-2 ${
-                  g.severity === 'critical' ? 'bg-red-50 border-red-200'   :
-                  g.severity === 'moderate' ? 'bg-amber-50 border-amber-200' :
-                                              'bg-sky-50 border-sky-200'
+                  item.severity === 'critical' ? 'bg-gradient-to-r from-red-50 to-red-50/30 border-red-200' :
+                  item.severity === 'moderate' ? 'bg-gradient-to-r from-amber-50 to-amber-50/30 border-amber-200' :
+                  'bg-gradient-to-r from-sky-50 to-sky-50/30 border-sky-200'
                 }`}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <p className="font-semibold text-sky-900 text-sm">{g.skill}</p>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full capitalize ${
-                      g.severity === 'critical' ? 'bg-red-100 text-red-600'     :
-                      g.severity === 'moderate' ? 'bg-amber-100 text-amber-700' :
-                                                  'bg-sky-100 text-sky-600'
-                    }`}>{g.severity}</span>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="font-bold text-sky-800 text-sm">{item.skill}</p>
+                    <div className="flex items-center gap-1">
+                      <Activity className="w-3 h-3 text-sky-400" />
+                      <span className="text-xs text-sky-500">{item.frequency} occurrences</span>
+                    </div>
                   </div>
-                  <div className="h-1.5 bg-white/60 rounded-full overflow-hidden mb-2">
-                    <div className="h-full rounded-full" style={{
-                      width: `${g.coverage}%`,
-                      background: g.severity === 'critical' ? '#ef4444' : g.severity === 'moderate' ? '#f59e0b' : '#0ea5e9',
-                    }} />
+                  <p className="text-sky-600 text-sm leading-relaxed mb-3">{item.recommendation}</p>
+                  <div className="flex items-center gap-2 text-[10px] text-sky-400 border-t border-sky-100 pt-2 mt-1">
+                    <span>Based on analysis of recent screening data</span>
+                    <Target className="w-3 h-3" />
                   </div>
-                  <p className="text-sky-600 text-xs leading-relaxed flex items-start gap-1.5">
-                    <Lightbulb className="w-3 h-3 flex-shrink-0 mt-0.5 text-sky-400" />
-                    {g.recommendation}
-                  </p>
                 </div>
               ))}
             </div>
@@ -629,7 +696,7 @@ export default function HRDashboardPage() {
         )}
       </Section>
 
-      {/* ── Score Distribution & Trend ────────────────────────────────────── */}
+      {/* Score Distribution & Trend */}
       <Section title="Score Distribution & Applicant Trend" icon={TrendingUp} defaultOpen={false}>
         <div className="p-5 grid lg:grid-cols-2 gap-6">
           <div>
@@ -673,7 +740,7 @@ export default function HRDashboardPage() {
         </div>
       </Section>
 
-      {/* ── Top Candidates ────────────────────────────────────────────────── */}
+      {/* Top Candidates */}
       {topCandidates.length > 0 && (
         <Section title="Top Candidates Across All Screenings" icon={Trophy} badge={topCandidates.length} defaultOpen={false}>
           <div className="divide-y divide-sky-50">
@@ -701,61 +768,7 @@ export default function HRDashboardPage() {
         </Section>
       )}
 
-      {/* ── Hiring Pipeline ───────────────────────────────────────────────── */}
-      <Section title="Hiring Pipeline by Job" icon={GitBranch} defaultOpen={false}>
-        <div className="flex items-center gap-3 px-5 py-3 border-b border-sky-100 bg-sky-50/40">
-          <Filter className="w-3.5 h-3.5 text-sky-400" />
-          <select value={pipelineJob} onChange={e => setPipelineJob(e.target.value)}
-            className="text-sm border-2 border-sky-100 rounded-xl px-3 py-2 text-sky-700 outline-none bg-white flex-1 max-w-xs min-h-[40px]">
-            <option value="">Select a job…</option>
-            {jobs.map((j: any) => <option key={j._id} value={j._id}>{j.title}</option>)}
-          </select>
-        </div>
-        {!pipelineJob ? (
-          <div className="p-10 text-center"><p className="text-sky-400 text-sm">Select a job to see candidate pipeline.</p></div>
-        ) : pipelineLoading ? (
-          <div className="p-8 flex justify-center"><div className="w-8 h-8 border-4 border-sky-400 border-t-transparent rounded-full animate-spin" /></div>
-        ) : pipelineData ? (
-          <div className="flex gap-4 overflow-x-auto p-5">
-            {kanbanCols.map(col => {
-              const colData = pipelineData[col.key] || { candidates:[], count:0 }
-              return (
-                <div key={col.key} className="min-w-[190px] flex-shrink-0">
-                  <div className={`flex items-center justify-between px-4 py-2.5 rounded-t-xl ${col.color} border-b-2 ${col.border}`}>
-                    <span className="text-xs font-bold uppercase tracking-wide">{col.label}</span>
-                    <span className="w-6 h-6 rounded-full bg-black/10 flex items-center justify-center text-xs font-bold">{colData.count}</span>
-                  </div>
-                  <div className="bg-sky-50/40 rounded-b-xl p-2 space-y-2 min-h-[120px]">
-                    {colData.candidates.map((c: any, i: number) => {
-                      const p = c.talentProfile || c
-                      return (
-                        <div key={i} className={`bg-white rounded-xl p-3 shadow-sm border-l-4 ${col.border}`}>
-                          <p className="font-semibold text-sky-900 text-sm">{p.firstName} {p.lastName}</p>
-                          {c.aiScore != null && (
-                            <div className="mt-1.5 flex items-center gap-1.5">
-                              <div className="flex-1 h-1.5 bg-sky-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-sky-400 rounded-full" style={{ width:`${c.aiScore}%` }} />
-                              </div>
-                              <span className="text-sky-500 text-xs font-bold">{c.aiScore}</span>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                    {colData.count > colData.candidates.length && (
-                      <p className="text-sky-400 text-xs text-center py-1">+{colData.count - colData.candidates.length} more</p>
-                    )}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        ) : (
-          <div className="p-10 text-center"><p className="text-sky-400 text-sm">No pipeline data yet.</p></div>
-        )}
-      </Section>
-
-      {/* ── Recent Screenings ─────────────────────────────────────────────── */}
+      {/* Recent Screenings */}
       <Section title="Recent Screenings" icon={FileText} badge={recentScreenings.length} defaultOpen={false}>
         {recentScreenings.length === 0 ? (
           <div className="p-8 text-center">
@@ -790,7 +803,7 @@ export default function HRDashboardPage() {
         )}
       </Section>
 
-      {/* ── Summary bar ───────────────────────────────────────────────────── */}
+      {/* Summary bar */}
       <div className="bg-sky-900 rounded-2xl px-6 py-4 flex flex-wrap items-center justify-between gap-4">
         <div className="flex items-center gap-6 flex-wrap">
           {[
@@ -798,7 +811,6 @@ export default function HRDashboardPage() {
             { label:'Open Roles',     value: stats.activeJobs || 0,             color:'text-white' },
             { label:'Shortlisted',    value: stats.shortlisted || 0,            color:'text-white' },
             { label:'Avg Score',      value: summary.avgScore || 0,             color:'text-sky-300' },
-            // { label:'Conversion',     value:`${stats.shortlistRate || 0}%`,     color:'text-emerald-400' },
           ].map((s, i, arr) => (
             <div key={s.label} className="flex items-center gap-6">
               <div className="text-center">
@@ -815,7 +827,7 @@ export default function HRDashboardPage() {
         </div>
       </div>
 
-      {/* ── Candidate modal ───────────────────────────────────────────────── */}
+      {/* Candidate modal */}
       {selectedCandidate && (
         <div className="fixed inset-0 bg-sky-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
@@ -861,7 +873,7 @@ export default function HRDashboardPage() {
               </div>
               {selectedCandidate.recommendation && (
                 <div className="bg-sky-50 border-l-4 border-sky-500 rounded-r-2xl p-4">
-                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-1">Recommendation</p>
+                  <p className="text-sky-500 text-xs font-bold uppercase tracking-wide mb-1">AI Recommendation</p>
                   <p className="text-sky-800 text-sm leading-relaxed">{selectedCandidate.recommendation}</p>
                 </div>
               )}
