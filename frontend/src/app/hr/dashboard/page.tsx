@@ -8,7 +8,7 @@ import {
   FileText, Plus, RefreshCw, ArrowUpRight, ArrowDownRight,
   Minus, Eye, X, Download, Filter, GitBranch, Trophy, Award,
   Clock, Calendar, Lightbulb, TrendingUp,
-  ChevronDown, ChevronUp,
+  ChevronDown, ChevronUp, Brain, Loader2,
 } from 'lucide-react'
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -164,7 +164,6 @@ export default function HRDashboardPage() {
   const fetchAIRecommendations = useCallback(async (jobId: string, dept: string) => {
     setLoadingAI(true)
     try {
-      // Get completed screenings to analyze
       const screeningsRes = await screeningAPI.list({ status: 'completed' })
       const screenings = screeningsRes.data.data || []
       
@@ -173,7 +172,6 @@ export default function HRDashboardPage() {
         return
       }
 
-      // Filter screenings by job or department if needed
       let filteredScreenings = screenings
       if (jobId !== 'all') {
         filteredScreenings = screenings.filter((s: any) => {
@@ -182,16 +180,14 @@ export default function HRDashboardPage() {
         })
       }
 
-      // If no screenings for selected job, use all
       if (filteredScreenings.length === 0 && jobId !== 'all') {
         filteredScreenings = screenings
       }
 
-      // Extract skill gaps from screening results
       const allSkillGaps: any[] = []
       const allStrengths: any[] = []
       
-      for (const screening of filteredScreenings.slice(0, 5)) { // Limit to last 5 screenings
+      for (const screening of filteredScreenings.slice(0, 5)) {
         if (screening.shortlist && Array.isArray(screening.shortlist)) {
           for (const candidate of screening.shortlist) {
             if (candidate.gaps && Array.isArray(candidate.gaps)) {
@@ -204,7 +200,6 @@ export default function HRDashboardPage() {
         }
       }
 
-      // Analyze gaps to generate AI insights
       const gapFrequency = new Map()
       allSkillGaps.forEach(gap => {
         gapFrequency.set(gap, (gapFrequency.get(gap) || 0) + 1)
@@ -229,7 +224,6 @@ export default function HRDashboardPage() {
     }
   }, [])
 
-  // Helper to generate AI recommendations
   const generateRecommendation = (gap: string, frequency: number, totalCandidates: number): string => {
     const percentage = ((frequency / (totalCandidates || 1)) * 100).toFixed(0)
     
