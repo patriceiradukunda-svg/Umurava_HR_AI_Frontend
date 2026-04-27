@@ -263,7 +263,7 @@ npm install
 cp .env.example .env.local
 ```
 
-Fill in your values (see [Environment Variables](#environment-variables) below).
+Fill in values (see [Environment Variables](#environment-variables) below).
 
 ### 4. Run the development server
 
